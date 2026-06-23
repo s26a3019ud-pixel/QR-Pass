@@ -572,46 +572,48 @@ function setupQRScanner() {
     const fileTrigger = document.getElementById('btn-scan-file-trigger');
     const fileInput = document.getElementById('input-scan-file');
 
-    fileTrigger.addEventListener('click', () => {
-        fileInput.click();
-    });
+    if (fileTrigger && fileInput) {
+        fileTrigger.addEventListener('click', () => {
+            fileInput.click();
+        });
 
-    fileInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
 
-        scannerStatus.textContent = "画像ファイルを読み込み中...";
+            scannerStatus.textContent = "画像ファイルを読み込み中...";
 
-        const reader = new FileReader();
-        reader.onload = function(evt) {
-            const img = new Image();
-            img.onload = function() {
-                // Set target dimensions on canvas
-                canvasElement.width = img.width;
-                canvasElement.height = img.height;
-                canvasElement.classList.remove('hidden');
-                canvas.drawImage(img, 0, 0);
-                
-                try {
-                    const imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
-                    const code = jsQR(imageData.data, imageData.width, imageData.height);
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const img = new Image();
+                img.onload = function() {
+                    // Set target dimensions on canvas
+                    canvasElement.width = img.width;
+                    canvasElement.height = img.height;
+                    canvasElement.classList.remove('hidden');
+                    canvas.drawImage(img, 0, 0);
                     
-                    if (code && isValidURL(code.data)) {
-                        handleScannedURL(code.data);
-                    } else {
-                        alert('画像から有効な出席用QRコード（URL）を検出できませんでした。');
-                        scannerStatus.textContent = "スキャンに失敗しました。他の画像をお試しください。";
+                    try {
+                        const imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
+                        const code = jsQR(imageData.data, imageData.width, imageData.height);
+                        
+                        if (code && isValidURL(code.data)) {
+                            handleScannedURL(code.data);
+                        } else {
+                            alert('画像から有効な出席用QRコード（URL）を検出できませんでした。');
+                            scannerStatus.textContent = "スキャンに失敗しました。他の画像をお試しください。";
+                        }
+                    } catch (err) {
+                        console.error("jsQR error decoding image file:", err);
+                        alert('画像のデコードに失敗しました。');
                     }
-                } catch (err) {
-                    console.error("jsQR error decoding image file:", err);
-                    alert('画像のデコードに失敗しました。');
-                }
+                };
+                img.src = evt.target.result;
             };
-            img.src = evt.target.result;
-        };
-        reader.readAsDataURL(file);
-        e.target.value = ''; // Reset file input
-    });
+            reader.readAsDataURL(file);
+            e.target.value = ''; // Reset file input
+        });
+    }
 }
 
 function startScanning(targetClass = null) {
@@ -837,30 +839,33 @@ function setupSettingsScreen() {
     document.getElementById('btn-clear-history').addEventListener('click', clearHistoryData);
     
     // Dynamic period adding
-    document.getElementById('btn-add-period').addEventListener('click', () => {
-        const newNum = state.periods.length + 1;
-        let start = "18:00";
-        let end = "19:30";
-        if (state.periods.length > 0) {
-            const lastPeriod = state.periods[state.periods.length - 1];
-            const [h, m] = lastPeriod.end.split(':').map(Number);
-            const startMins = h * 60 + m + 10; // 10 minutes break
-            const sh = Math.floor(startMins / 60);
-            const sm = startMins % 60;
-            start = `${String(sh).padStart(2, '0')}:${String(sm).padStart(2, '0')}`;
+    const btnAddPeriod = document.getElementById('btn-add-period');
+    if (btnAddPeriod) {
+        btnAddPeriod.addEventListener('click', () => {
+            const newNum = state.periods.length + 1;
+            let start = "18:00";
+            let end = "19:30";
+            if (state.periods.length > 0) {
+                const lastPeriod = state.periods[state.periods.length - 1];
+                const [h, m] = lastPeriod.end.split(':').map(Number);
+                const startMins = h * 60 + m + 10; // 10 minutes break
+                const sh = Math.floor(startMins / 60);
+                const sm = startMins % 60;
+                start = `${String(sh).padStart(2, '0')}:${String(sm).padStart(2, '0')}`;
+                
+                const endMins = startMins + 90; // 90 minutes class
+                const eh = Math.floor(endMins / 60);
+                const em = endMins % 60;
+                end = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
+            }
+            state.periods.push({ number: newNum, start, end });
+            saveData('periods');
+            renderSettings();
             
-            const endMins = startMins + 90; // 90 minutes class
-            const eh = Math.floor(endMins / 60);
-            const em = endMins % 60;
-            end = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
-        }
-        state.periods.push({ number: newNum, start, end });
-        saveData('periods');
-        renderSettings();
-        
-        // Notify scheduling update
-        scheduleDailyNotifications();
-    });
+            // Notify scheduling update
+            scheduleDailyNotifications();
+        });
+    }
 
     // Backup triggers
     document.getElementById('btn-export-data').addEventListener('click', exportDataToJSON);
@@ -1418,251 +1423,7 @@ function scheduleDailyNotifications() {
                 const attended = state.history.some(h => {
                     const hDate = new Date(h.timestamp).toISOString().slice(0, 10);
                     return h.classId === cls.id && hDate === todayDateStr;
-                });
-
-                if (!attended) {
-                    new Notification("出席リマインダー", {
-                        body: `授業「${cls.name}」が10分後に始まります。出席登録はしましたか？`,
-                        icon: 'icon-192.png'
-                    });
-                }
-            }, delay);
-            notificationTimers.push(timer);
-        }
-    });
-}
-
-function checkAttendanceReminders() {
-    const alertBox = document.getElementById('attendance-warning-alert');
-    const alertText = document.getElementById('attendance-warning-text');
-    
-    if (!alertBox || !alertText) return;
-
-    const now = new Date();
-    const todayNum = now.getDay();
-    if (todayNum === 0) {
-        alertBox.classList.add('hidden');
-        return;
-    }
-
-    const todayDateStr = now.toISOString().slice(0, 10);
-    const getMinutes = (t) => {
-        const [h, m] = t.split(':').map(Number);
-        return h * 60 + m;
-    };
-    const nowMins = now.getHours() * 60 + now.getMinutes();
-
-    const todayClasses = state.classes.filter(c => Number(c.day) === todayNum);
-    const missedClasses = [];
-
-    todayClasses.forEach(cls => {
-        const period = state.periods.find(p => p.number === Number(cls.period));
-        if (!period) return;
-
-        const startMins = getMinutes(period.start);
-        
-        // Alert if time is 15 mins before starting (or anytime after)
-        if (nowMins >= (startMins - 15)) {
-            const attended = state.history.some(h => {
-                const hDate = new Date(h.timestamp).toISOString().slice(0, 10);
-                return h.classId === cls.id && hDate === todayDateStr;
-            });
-
-            if (!attended) {
-                missedClasses.push(cls.name);
-            }
-        }
-    });
-
-    if (missedClasses.length > 0) {
-        alertBox.classList.remove('hidden');
-        alertText.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <strong>出席忘れ警告:</strong> ${missedClasses.join(', ')} の出席登録がまだの可能性があります。`;
-    } else {
-        alertBox.classList.add('hidden');
-    }
-}
-
-
-
-// ==========================================
-// 10. MANABA IMPORT LOGIC
-// ==========================================
-let parsedClassesTemp = []; // Temporary stores parsed classes for preview
-
-function setupManabaImport() {
-    const importModal = document.getElementById('import-modal');
-    const importTrigger = document.getElementById('btn-import-manaba-trigger');
-    const closeImportBtn = document.getElementById('btn-close-import-modal');
-    const parseBtn = document.getElementById('btn-parse-import');
-    const backBtn = document.getElementById('btn-back-import');
-    const submitBtn = document.getElementById('btn-submit-import');
-    const textarea = document.getElementById('import-textarea');
-    
-    const stepPaste = document.getElementById('import-step-paste');
-    const stepPreview = document.getElementById('import-step-preview');
-
-    importTrigger.addEventListener('click', () => {
-        textarea.value = '';
-        stepPaste.classList.remove('hidden');
-        stepPreview.classList.add('hidden');
-        importModal.classList.add('active');
-    });
-
-    closeImportBtn.addEventListener('click', () => {
-        importModal.classList.remove('active');
-    });
-
-    backBtn.addEventListener('click', () => {
-        stepPaste.classList.remove('hidden');
-        stepPreview.classList.add('hidden');
-    });
-
-    parseBtn.addEventListener('click', () => {
-        const text = textarea.value.trim();
-        if (!text) {
-            alert('テキストを貼り付けてください。');
-            return;
-        }
-
-        parsedClassesTemp = parseManabaText(text);
-
-        if (parsedClassesTemp.length === 0) {
-            alert('授業情報を検出できませんでした。\n曜日と時限（例: 月1, 火2）が含まれているか確認してください。');
-            return;
-        }
-
-        renderImportPreview();
-        stepPaste.classList.add('hidden');
-        stepPreview.classList.remove('hidden');
-    });
-
-    submitBtn.addEventListener('click', () => {
-        const checkedCheckboxes = document.querySelectorAll('.import-preview-checkbox:checked');
-        if (checkedCheckboxes.length === 0) {
-            alert('登録する授業を1つ以上選択してください。');
-            return;
-        }
-
-        const importMode = document.querySelector('input[name="import-mode"]:checked').value;
-        const classesToImport = [];
-
-        checkedCheckboxes.forEach(cb => {
-            const index = parseInt(cb.getAttribute('data-index'), 10);
-            const tempCls = parsedClassesTemp[index];
-            if (tempCls) {
-                classesToImport.push({
-                    id: 'class-' + (Date.now() + Math.random()).toString(36).replace('.', ''),
-                    name: tempCls.name,
-                    day: tempCls.day,
-                    period: tempCls.period,
-                    room: tempCls.room || '',
-                    urlTemplate: '',
-                    memo: 'manabaインポート'
-                });
-            }
-        });
-
-        if (importMode === 'overwrite') {
-            if (!confirm('現在の時間割データがすべて消去され、選択した授業に上書きされます。よろしいですか？')) {
-                return;
-            }
-            state.classes = classesToImport;
-        } else {
-            // Merge mode
-            let duplicatesCount = 0;
-            const mergedClasses = [...state.classes];
-
-            classesToImport.forEach(newCls => {
-                const dupIndex = mergedClasses.findIndex(c => Number(c.day) === Number(newCls.day) && Number(c.period) === Number(newCls.period));
-                if (dupIndex !== -1) {
-                    mergedClasses[dupIndex] = newCls;
-                    duplicatesCount++;
-                } else {
-                    mergedClasses.push(newCls);
-                }
-            });
-
-            state.classes = mergedClasses;
-            if (duplicatesCount > 0) {
-                alert(`${duplicatesCount}件の重複する時限の授業が新しい授業で上書きされました。`);
-            }
-        }
-
-        saveData('classes');
-        importModal.classList.remove('active');
-        
-        // Refresh views
-        renderTodayClasses();
-        renderTimetableForCurrentTab();
-        updateDashboard();
-        
-        alert(`${classesToImport.length}件の授業を登録しました！`);
-    });
-}
-
-function parseManabaText(text) {
-    const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-    const results = [];
-    const dayMap = { '日': 0, '月': 1, '火': 2, '水': 3, '木': 4, '金': 5, '土': 6 };
-
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        const periodsFound = [];
-
-        // 曜日と時限のペアを検出
-        let reg = /([月火水木金土])\s*(?:曜|曜日)?\s*([1-6])(?:限|限目)?/g;
-        let match;
-        while ((match = reg.exec(line)) !== null) {
-            periodsFound.push({
-                dayStr: match[1],
-                periodNum: parseInt(match[2], 10)
-            });
-        }
-
-        // 連続コマ (例: 月1,2 または 火2-3)
-        const compactRegex = /([月火水木金土])\s*(?:曜|曜日)?\s*([1-6])\s*[,，・-]\s*([1-6])/;
-        const compactMatch = line.match(compactRegex);
-        if (compactMatch) {
-            const dStr = compactMatch[1];
-            const p1 = parseInt(compactMatch[2], 10);
-            const p2 = parseInt(compactMatch[3], 10);
-            if (!periodsFound.some(p => p.dayStr === dStr && p.periodNum === p1)) {
-                periodsFound.push({ dayStr: dStr, periodNum: p1 });
-            }
-            if (!periodsFound.some(p => p.dayStr === dStr && p.periodNum === p2)) {
-                periodsFound.push({ dayStr: dStr, periodNum: p2 });
-            }
-        }
-
-        if (periodsFound.length > 0) {
-            let className = "";
-
-            // 1. 同一行の曜日時限を除去した部分
-            let cleanedLine = line.replace(/([月火水木金土])\s*(?:曜|曜日)?\s*[1-6](?:\s*[,，・-]\s*[1-6])*(?:限|限目)?/g, '').trim();
-            cleanedLine = cleanedLine.replace(/^[-/：:；;\s,，・]+|[-/：:；;\s,，・]+$/g, '').trim();
-
-            if (cleanedLine.length >= 2 && !cleanedLine.includes('/') && !cleanedLine.includes('http') && isNaN(cleanedLine)) {
-                className = cleanedLine;
-            } else if (i > 0) {
-                // 2. 1行上
-                let prevLine = lines[i - 1];
-                if (prevLine.length >= 2 && !prevLine.includes('http') && !prevLine.match(/^[0-9\-\s]{4,}$/)) {
-                    className = prevLine;
-                }
-            }
-
-            if (!className && i > 1) {
-                // 3. 2行上
-                let prev2Line = lines[i - 2];
-                if (prev2Line.length >= 2) {
-                    className = prev2Line;
-                }
-            }
-
-            if (className) {
-                className = className.replace(/\s*[\(（][^）\)]*[\)）]\s*/g, '').trim();
-                className = className.replace(/\[未読.*\]/g, '').trim();
-                className = className.replace(/^[A-Za-z0-9\-\s]{5,}/, '').trim();
+       );
                 if (className.length < 2) {
                     className = lines[i - 1] || lines[i];
                 }
