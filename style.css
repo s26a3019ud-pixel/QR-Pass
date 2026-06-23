@@ -1117,4 +1117,9 @@ body {
     background: rgba(244, 63, 94, 0.1);
 }
 
+.toggle-arrow.open {
+    transform: rotate(180deg);
+}
+
+
 

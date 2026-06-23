@@ -639,9 +639,24 @@ function startScanning(targetClass = null) {
         .then(function(mediaStream) {
             stream = mediaStream;
             video.srcObject = mediaStream;
+            
+            // Programmatically force required attributes for iOS Safari WebRTC
             video.setAttribute("playsinline", true);
-            video.play();
-            animationFrameId = requestAnimationFrame(tick);
+            video.setAttribute("autoplay", true);
+            video.setAttribute("muted", true);
+            
+            // Wait for metadata to load before calling play() on iOS
+            video.onloadedmetadata = function() {
+                video.play()
+                    .then(() => {
+                        animationFrameId = requestAnimationFrame(tick);
+                    })
+                    .catch(err => {
+                        console.error("Failed to start video playback on iOS:", err);
+                        // Force frame loop even if autoplay policy blocked it
+                        animationFrameId = requestAnimationFrame(tick);
+                    });
+            };
         })
         .catch(function(err) {
             console.error("Camera access error:", err);
@@ -855,6 +870,24 @@ function setupSettingsScreen() {
     importInput.addEventListener('change', importDataFromJSON);
 
     document.getElementById('btn-reset-all').addEventListener('click', resetAllApplicationData);
+
+    // Update Logs Notice Center Accordion Toggle
+    const toggleBtn = document.getElementById('btn-toggle-notifications');
+    const notifContent = document.getElementById('notification-content');
+    const notifArrow = document.getElementById('notif-toggle-arrow');
+    
+    if (toggleBtn && notifContent && notifArrow) {
+        toggleBtn.addEventListener('click', () => {
+            const isHidden = notifContent.classList.contains('hidden');
+            if (isHidden) {
+                notifContent.classList.remove('hidden');
+                notifArrow.classList.add('open');
+            } else {
+                notifContent.classList.add('hidden');
+                notifArrow.classList.remove('open');
+            }
+        });
+    }
 }
 
 function renderSettings() {

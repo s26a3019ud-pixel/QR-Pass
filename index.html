@@ -138,6 +138,37 @@
             <section id="screen-settings" class="app-screen">
                 <h3>設定・データ管理</h3>
                 
+                <!-- Notification Center (Update Logs) -->
+                <div class="settings-section">
+                    <div class="notification-header" id="btn-toggle-notifications" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                        <h4 style="margin-bottom: 0; border-bottom: none; padding-bottom: 0; font-size: 0.95rem;">
+                            <i class="fa-solid fa-bell highlight" style="margin-right: 6px;"></i> お知らせ・アプデ履歴
+                        </h4>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span class="badge-new" style="background: var(--danger); color: white; font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 8px;">NEW</span>
+                            <i class="fa-solid fa-chevron-down text-muted toggle-arrow" id="notif-toggle-arrow" style="transition: var(--transition-smooth); font-size: 0.85rem;"></i>
+                        </div>
+                    </div>
+                    
+                    <div id="notification-content" class="notification-content hidden" style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; animation: slideUp 0.3s ease;">
+                        <div class="notification-item">
+                            <div class="notif-meta" style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">
+                                <span class="notif-version" style="font-weight: 600; color: var(--accent-primary);">v1.1.0</span>
+                                <span class="notif-date">2026/06/23</span>
+                            </div>
+                            <h5 class="notif-title" style="font-size: 0.85rem; font-weight: 600; margin-bottom: 8px;">スマホ対応 & 5つの大型機能アップデート！</h5>
+                            <ul class="notif-list" style="margin-left: 16px; font-size: 0.75rem; color: var(--text-secondary); line-height: 1.6; display: flex; flex-direction: column; gap: 4px;">
+                                <li>📱 <strong>iPhone (iOS Safari) カメラ不具合修正</strong>: 映像が真っ暗になる問題を解消。</li>
+                                <li>📸 <strong>アルバムからQR読取</strong>: カメラの代わりに、スクショ写真を選択して出席可能に。</li>
+                                <li>🤖 <strong>manabaスクショインポート</strong>: 時間割の画像から文字をOCR解析して一括登録。</li>
+                                <li>⏰ <strong>出席忘れ警告アラート</strong>: 未出席の授業をホームに警告表示＆10分前プッシュ通知。</li>
+                                <li>📅 <strong>時限数の動的追加（10時間制対応）</strong>: 時限を何限でも自由に増やせます。</li>
+                                <li>🔗 <strong>出席URLの自動マッピング</strong>: スキャンしたURLを自動で授業情報へ保存。</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="settings-section">
                     <div class="section-header-row" style="margin-bottom: 16px;">
                         <h4 style="margin-bottom: 0; border-bottom: none; padding-bottom: 0;">時限の時間設定</h4>
@@ -205,7 +236,7 @@
                     </button>
                 </div>
                 <div class="video-wrapper">
-                    <video id="scanner-video" playsinline></video>
+                    <video id="scanner-video" autoplay muted playsinline></video>
                     <canvas id="scanner-canvas" class="hidden"></canvas>
                     <div class="scanner-guide">
                         <div class="guide-corner top-left"></div>
