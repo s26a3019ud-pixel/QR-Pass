@@ -198,6 +198,27 @@
                     </div>
                 </div>
 
+                <div class="settings-section">
+                    <h4>manabaからの直接インポート</h4>
+                    <p class="text-muted" style="font-size: 0.75rem; margin-bottom: 12px; line-height: 1.5;">
+                        スマホのSafariでmanabaから時間割を一発で直接インポートするためのボタンです。下記の手順でお使いのSafariに登録してください。
+                    </p>
+                    <div style="background: rgba(0,0,0,0.15); padding: 12px; border-radius: 12px; margin-bottom: 16px;">
+                        <ol style="margin-left: 16px; font-size: 0.75rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 6px; line-height: 1.5;">
+                            <li>このページをSafariで「ブックマーク（お気に入り）」に追加します。</li>
+                            <li>追加したブックマークのタイトルを「manabaからインポート」等に書き換えます。</li>
+                            <li>ブックマークの編集画面で、登録されたURLを完全に消し、下記のコードを代わりに貼り付けて保存します。</li>
+                        </ol>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label style="font-size: 0.8rem; margin-bottom: 6px; display: block; color: var(--text-secondary); font-weight: 500;">登録用コード</label>
+                        <textarea id="bookmarklet-code" rows="3" readonly style="font-family: monospace; font-size: 0.7rem; background: rgba(255,255,255,0.03); color: var(--accent-primary); resize: none;" onclick="this.select();">javascript:(function(){const text=document.body.innerText;const url='https://s26a3019ud-pixel.github.io/QR-Pass/?import_text='+encodeURIComponent(text);window.open(url,'_self');})();</textarea>
+                    </div>
+                    <button id="btn-copy-bookmarklet" class="btn btn-secondary btn-sm" style="width: auto; padding: 6px 12px; font-size: 0.75rem; font-weight: 500;">
+                        <i class="fa-solid fa-copy"></i> コードをコピー
+                    </button>
+                </div>
+
                 <div class="settings-section app-info">
                     <h4>アプリについて</h4>
                     <p>QR-Pass v1.0.0</p>

@@ -83,6 +83,9 @@ function initApp() {
 
     // Render today's classes
     renderTodayClasses();
+
+    // Handle manaba URL Parameter Import
+    handleURLImport();
 }
 
 // ==========================================
@@ -164,12 +167,24 @@ function updateDashboard() {
         const cls = info.classData;
         currentActiveTargetClass = cls;
 
-        badge.textContent = `${cls.period}限 (開講中)`;
+        // Group continuous classes for dashboard display
+        const now = new Date();
+        const currentDay = now.getDay();
+        const todayClasses = state.classes.filter(c => Number(c.day) === currentDay);
+        todayClasses.sort((a, b) => Number(a.period) - Number(b.period));
+        const groupedClasses = groupContinuousClasses(todayClasses);
+        const groupedCls = groupedClasses.find(g => g.ids.includes(cls.id));
+
+        if (groupedCls && groupedCls.periods.length > 1) {
+            badge.textContent = `${groupedCls.startPeriod}-${groupedCls.endPeriod}限 (開講中)`;
+            timeEl.textContent = getPeriodTimeRangeStr(groupedCls.startPeriod, groupedCls.endPeriod);
+        } else {
+            badge.textContent = `${cls.period}限 (開講中)`;
+            const periodTime = state.periods.find(p => p.number === Number(cls.period));
+            timeEl.textContent = periodTime ? `${periodTime.start} ~ ${periodTime.end}` : '--:--';
+        }
         badge.className = "status-badge active-class";
         nameEl.textContent = cls.name;
-        
-        const periodTime = state.periods.find(p => p.number === Number(cls.period));
-        timeEl.textContent = periodTime ? `${periodTime.start} ~ ${periodTime.end}` : '--:--';
         roomEl.textContent = cls.room || '教室情報なし';
 
         // Check if there is an attendance URL history for this class
@@ -277,18 +292,20 @@ function renderTodayClasses() {
 
     // Sort classes by period number
     todayClasses.sort((a, b) => Number(a.period) - Number(b.period));
+    const groupedTodayClasses = groupContinuousClasses(todayClasses);
 
     container.innerHTML = '';
-    todayClasses.forEach(cls => {
-        const periodTime = state.periods.find(p => p.number === Number(cls.period));
-        const timeStr = periodTime ? `${periodTime.start}~${periodTime.end}` : '';
+    groupedTodayClasses.forEach(cls => {
+        const isGrouped = cls.periods.length > 1;
+        const periodBadgeText = isGrouped ? `${cls.startPeriod}-${cls.endPeriod}` : `${cls.startPeriod}`;
+        const timeStr = getPeriodTimeRangeStr(cls.startPeriod, cls.endPeriod);
         
         const card = document.createElement('div');
         card.className = 'class-card';
         card.innerHTML = `
             <div class="class-card-left">
                 <div class="period-badge">
-                    <span>${cls.period}</span>
+                    <span>${periodBadgeText}</span>
                     <small>限</small>
                 </div>
                 <div class="class-info">
@@ -315,7 +332,7 @@ function renderTodayClasses() {
         // Small scan button logic
         card.querySelector('.btn-card-scan').addEventListener('click', (e) => {
             e.stopPropagation();
-            startScanning(cls);
+            startScanning(cls.classes[0]);
         });
 
         container.appendChild(card);
@@ -375,18 +392,20 @@ function renderTimetableForCurrentTab() {
     }
 
     dayClasses.sort((a, b) => Number(a.period) - Number(b.period));
+    const groupedDayClasses = groupContinuousClasses(dayClasses);
 
     container.innerHTML = '';
-    dayClasses.forEach(cls => {
-        const periodTime = state.periods.find(p => p.number === Number(cls.period));
-        const timeStr = periodTime ? `${periodTime.start}~${periodTime.end}` : '';
+    groupedDayClasses.forEach(cls => {
+        const isGrouped = cls.periods.length > 1;
+        const periodBadgeText = isGrouped ? `${cls.startPeriod}-${cls.endPeriod}` : `${cls.startPeriod}`;
+        const timeStr = getPeriodTimeRangeStr(cls.startPeriod, cls.endPeriod);
 
         const card = document.createElement('div');
         card.className = 'class-card';
         card.innerHTML = `
             <div class="class-card-left">
                 <div class="period-badge">
-                    <span>${cls.period}</span>
+                    <span>${periodBadgeText}</span>
                     <small>限</small>
                 </div>
                 <div class="class-info">
@@ -892,6 +911,56 @@ function setupSettingsScreen() {
             } else {
                 notifContent.classList.add('hidden');
                 notifArrow.classList.remove('open');
+            }
+        });
+    }
+
+    // Dynamic Bookmarklet Generation & Copy Handler
+    const originUrl = window.location.origin + window.location.pathname;
+    const bookmarkletCodeText = `javascript:(function(){const text=document.body.innerText;const url='${originUrl}?import_text='+encodeURIComponent(text);window.open(url,'_self');})();`;
+    const bookmarkletCode = document.getElementById('bookmarklet-code');
+    if (bookmarkletCode) {
+        bookmarkletCode.value = bookmarkletCodeText;
+    }
+
+    const btnCopyBookmarklet = document.getElementById('btn-copy-bookmarklet');
+    if (btnCopyBookmarklet && bookmarkletCode) {
+        btnCopyBookmarklet.addEventListener('click', () => {
+            bookmarkletCode.select();
+            bookmarkletCode.setSelectionRange(0, 99999); // For mobile devices
+            
+            try {
+                navigator.clipboard.writeText(bookmarkletCode.value)
+                    .then(() => {
+                        const originalText = btnCopyBookmarklet.innerHTML;
+                        btnCopyBookmarklet.innerHTML = '<i class="fa-solid fa-check"></i> コピーしました！';
+                        btnCopyBookmarklet.classList.remove('btn-secondary');
+                        btnCopyBookmarklet.classList.add('btn-success');
+                        setTimeout(() => {
+                            btnCopyBookmarklet.innerHTML = originalText;
+                            btnCopyBookmarklet.classList.remove('btn-success');
+                            btnCopyBookmarklet.classList.add('btn-secondary');
+                        }, 2000);
+                    })
+                    .catch(err => {
+                        console.error('Failed to copy text: ', err);
+                        alert('コピーに失敗しました。テキストエリアを長押しして手動でコピーしてください。');
+                    });
+            } catch (err) {
+                try {
+                    document.execCommand('copy');
+                    const originalText = btnCopyBookmarklet.innerHTML;
+                    btnCopyBookmarklet.innerHTML = '<i class="fa-solid fa-check"></i> コピーしました！';
+                    btnCopyBookmarklet.classList.remove('btn-secondary');
+                    btnCopyBookmarklet.classList.add('btn-success');
+                    setTimeout(() => {
+                        btnCopyBookmarklet.innerHTML = originalText;
+                        btnCopyBookmarklet.classList.remove('btn-success');
+                        btnCopyBookmarklet.classList.add('btn-secondary');
+                    }, 2000);
+                } catch (e) {
+                    alert('コピーに失敗しました。テキストエリアを長押しして手動でコピーしてください。');
+                }
             }
         });
     }
@@ -1543,3 +1612,100 @@ function updateImportSubmitButtonCount() {
     submitBtn.textContent = `一括登録 (${checkedCount}件)`;
 }
 
+// ==========================================
+// 12. HELPER FUNCTIONS FOR CONTINUOUS CLASSES & BOOKMARKLET
+// ==========================================
+function groupContinuousClasses(classesList) {
+    if (classesList.length === 0) return [];
+    
+    const sorted = [...classesList].sort((a, b) => Number(a.period) - Number(b.period));
+    const grouped = [];
+    let currentGroup = null;
+
+    sorted.forEach(cls => {
+        const periodNum = Number(cls.period);
+        if (!currentGroup) {
+            currentGroup = {
+                id: cls.id,
+                name: cls.name,
+                room: cls.room,
+                urlTemplate: cls.urlTemplate,
+                day: cls.day,
+                startPeriod: periodNum,
+                endPeriod: periodNum,
+                periods: [periodNum],
+                ids: [cls.id],
+                classes: [cls]
+            };
+        } else {
+            const isSameName = currentGroup.name === cls.name;
+            const isContinuous = periodNum === currentGroup.endPeriod + 1;
+            
+            if (isSameName && isContinuous) {
+                currentGroup.endPeriod = periodNum;
+                currentGroup.periods.push(periodNum);
+                currentGroup.ids.push(cls.id);
+                currentGroup.classes.push(cls);
+                if (!currentGroup.room && cls.room) currentGroup.room = cls.room;
+                if (!currentGroup.urlTemplate && cls.urlTemplate) currentGroup.urlTemplate = cls.urlTemplate;
+            } else {
+                grouped.push(currentGroup);
+                currentGroup = {
+                    id: cls.id,
+                    name: cls.name,
+                    room: cls.room,
+                    urlTemplate: cls.urlTemplate,
+                    day: cls.day,
+                    startPeriod: periodNum,
+                    endPeriod: periodNum,
+                    periods: [periodNum],
+                    ids: [cls.id],
+                    classes: [cls]
+                };
+            }
+        }
+    });
+    if (currentGroup) {
+        grouped.push(currentGroup);
+    }
+    return grouped;
+}
+
+function getPeriodTimeRangeStr(startPeriod, endPeriod) {
+    const startP = state.periods.find(p => p.number === Number(startPeriod));
+    const endP = state.periods.find(p => p.number === Number(endPeriod));
+    if (startP && endP) {
+        return `${startP.start}~${endP.end}`;
+    } else if (startP) {
+        return `${startP.start}~${startP.end}`;
+    }
+    return '';
+}
+
+function handleURLImport() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const importText = urlParams.get('import_text');
+    if (importText) {
+        const importModal = document.getElementById('import-modal');
+        const textarea = document.getElementById('import-textarea');
+        const stepPaste = document.getElementById('import-step-paste');
+        const stepPreview = document.getElementById('import-step-preview');
+        const tabText = document.getElementById('tab-import-text');
+
+        if (importModal && textarea && stepPaste && stepPreview && tabText) {
+            textarea.value = importText;
+            tabText.click();
+            stepPaste.classList.remove('hidden');
+            stepPreview.classList.add('hidden');
+            importModal.classList.add('active');
+
+            const parseBtn = document.getElementById('btn-parse-import');
+            if (parseBtn) {
+                parseBtn.click();
+            }
+
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
+        }
+    }
+}
