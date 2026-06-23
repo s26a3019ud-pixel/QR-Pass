@@ -205,6 +205,8 @@ function updateDashboard() {
         }
         quickUrlContainer.classList.add('hidden');
     }
+    // Directly check for attendance reminders inside dashboard loop
+    checkAttendanceReminders();
 }
 
 // Check what class is current based on settings and system clock
@@ -1480,13 +1482,6 @@ function checkAttendanceReminders() {
     }
 }
 
-// Hook checkAttendanceReminders inside clock loop / dashboard updates
-// Modify updateDashboard to include reminder check
-const originalUpdateDashboard = updateDashboard;
-updateDashboard = function() {
-    originalUpdateDashboard();
-    checkAttendanceReminders();
-};
 
 
 // ==========================================
