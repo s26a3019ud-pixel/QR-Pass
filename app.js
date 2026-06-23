@@ -77,6 +77,10 @@ function initApp() {
     // manaba Import setup
     setupManabaImport();
 
+    // Notifications & Reminders setup
+    setupNotifications();
+    scheduleDailyNotifications();
+
     // Render today's classes
     renderTodayClasses();
 }
@@ -473,13 +477,30 @@ function setupClassModal() {
     });
 }
 
+function updateClassPeriodSelect(selectedValue) {
+    const select = document.getElementById('form-class-period');
+    select.innerHTML = '';
+    state.periods.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.number;
+        opt.textContent = `${p.number}限`;
+        if (p.number === Number(selectedValue)) {
+            opt.selected = true;
+        }
+        select.appendChild(opt);
+    });
+}
+
 function openAddClassModal(defaultDay = 1) {
     classForm.reset();
     document.getElementById('form-class-id').value = '';
     document.getElementById('modal-title').textContent = '授業の追加';
     document.getElementById('form-class-day').value = defaultDay;
-    document.getElementById('btn-delete-class').classList.add('hidden');
     
+    // Dynamically update period choices
+    updateClassPeriodSelect();
+    
+    document.getElementById('btn-delete-class').classList.add('hidden');
     classModal.classList.add('active');
 }
 
@@ -490,7 +511,10 @@ function openEditClassModal(classId) {
     document.getElementById('form-class-id').value = cls.id;
     document.getElementById('form-class-name').value = cls.name;
     document.getElementById('form-class-day').value = cls.day;
-    document.getElementById('form-class-period').value = cls.period;
+    
+    // Dynamically update period choices
+    updateClassPeriodSelect(cls.period);
+    
     document.getElementById('form-class-room').value = cls.room || '';
     document.getElementById('form-class-url').value = cls.urlTemplate || '';
     document.getElementById('form-class-memo').value = cls.memo || '';
@@ -524,7 +548,6 @@ let isScanningActive = false;
 
 function setupQRScanner() {
     document.getElementById('btn-quick-scan').addEventListener('click', () => {
-        // Run quick scan with auto-detected current class or generic context
         const activeInfo = getCurrentPeriodClass();
         startScanning(activeInfo ? activeInfo.classData : null);
     });
@@ -542,13 +565,57 @@ function setupQRScanner() {
             stopScanningApp();
         }
     });
+
+    // File Scan Fallback setup
+    const fileTrigger = document.getElementById('btn-scan-file-trigger');
+    const fileInput = document.getElementById('input-scan-file');
+
+    fileTrigger.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        scannerStatus.textContent = "画像ファイルを読み込み中...";
+
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            const img = new Image();
+            img.onload = function() {
+                // Set target dimensions on canvas
+                canvasElement.width = img.width;
+                canvasElement.height = img.height;
+                canvasElement.classList.remove('hidden');
+                canvas.drawImage(img, 0, 0);
+                
+                try {
+                    const imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height);
+                    
+                    if (code && isValidURL(code.data)) {
+                        handleScannedURL(code.data);
+                    } else {
+                        alert('画像から有効な出席用QRコード（URL）を検出できませんでした。');
+                        scannerStatus.textContent = "スキャンに失敗しました。他の画像をお試しください。";
+                    }
+                } catch (err) {
+                    console.error("jsQR error decoding image file:", err);
+                    alert('画像のデコードに失敗しました。');
+                }
+            };
+            img.src = evt.target.result;
+        };
+        reader.readAsDataURL(file);
+        e.target.value = ''; // Reset file input
+    });
 }
 
 function startScanning(targetClass = null) {
     scanTargetClass = targetClass;
     isScanningActive = true;
     
-    // Update scanner header status
     const scannerHeaderTitle = scannerOverlay.querySelector('.scanner-header h3');
     if (targetClass) {
         scannerHeaderTitle.textContent = `${targetClass.name} | 出席スキャン`;
@@ -563,22 +630,22 @@ function startScanning(targetClass = null) {
     
     scannerOverlay.classList.add('active');
 
-    // Request camera access
+    // Request camera access - simplified parameters for maximum browser compatibility
     const constraints = {
-        video: { facingMode: "environment", width: { ideal: 640 }, height: { ideal: 640 } }
+        video: { facingMode: "environment" }
     };
 
     navigator.mediaDevices.getUserMedia(constraints)
         .then(function(mediaStream) {
             stream = mediaStream;
             video.srcObject = mediaStream;
-            video.setAttribute("playsinline", true); // required to tell iOS safari we don't want fullscreen
+            video.setAttribute("playsinline", true);
             video.play();
             animationFrameId = requestAnimationFrame(tick);
         })
         .catch(function(err) {
             console.error("Camera access error:", err);
-            scannerStatus.innerHTML = `<span class="text-danger"><i class="fa-solid fa-triangle-exclamation"></i> カメラの起動に失敗しました。権限を許可してください。</span>`;
+            scannerStatus.innerHTML = `<span class="text-danger"><i class="fa-solid fa-triangle-exclamation"></i> カメラを起動できません。<br>権限がオフか、他アプリで使用中かもしれません。</span>`;
         });
 }
 
@@ -692,6 +759,18 @@ function recordAttendance(classId, className, url) {
     }
 
     saveData('history');
+
+    // User Feedback: Map scanned URL back to the class profile template
+    if (classId && classId !== 'unknown') {
+        const clsIndex = state.classes.findIndex(c => c.id === classId);
+        if (clsIndex !== -1) {
+            if (state.classes[clsIndex].urlTemplate !== url) {
+                state.classes[clsIndex].urlTemplate = url;
+                saveData('classes');
+                console.log(`Auto-saved QR URL as template for ${className}`);
+            }
+        }
+    }
 }
 
 function renderHistory() {
@@ -740,6 +819,32 @@ function setupSettingsScreen() {
     document.getElementById('btn-save-periods').addEventListener('click', savePeriodsConfig);
     document.getElementById('btn-clear-history').addEventListener('click', clearHistoryData);
     
+    // Dynamic period adding
+    document.getElementById('btn-add-period').addEventListener('click', () => {
+        const newNum = state.periods.length + 1;
+        let start = "18:00";
+        let end = "19:30";
+        if (state.periods.length > 0) {
+            const lastPeriod = state.periods[state.periods.length - 1];
+            const [h, m] = lastPeriod.end.split(':').map(Number);
+            const startMins = h * 60 + m + 10; // 10 minutes break
+            const sh = Math.floor(startMins / 60);
+            const sm = startMins % 60;
+            start = `${String(sh).padStart(2, '0')}:${String(sm).padStart(2, '0')}`;
+            
+            const endMins = startMins + 90; // 90 minutes class
+            const eh = Math.floor(endMins / 60);
+            const em = endMins % 60;
+            end = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
+        }
+        state.periods.push({ number: newNum, start, end });
+        saveData('periods');
+        renderSettings();
+        
+        // Notify scheduling update
+        scheduleDailyNotifications();
+    });
+
     // Backup triggers
     document.getElementById('btn-export-data').addEventListener('click', exportDataToJSON);
     
@@ -756,7 +861,7 @@ function renderSettings() {
     const listContainer = document.getElementById('period-settings-list');
     listContainer.innerHTML = '';
 
-    state.periods.forEach(p => {
+    state.periods.forEach((p, idx) => {
         const row = document.createElement('div');
         row.className = 'period-setting-row';
         row.innerHTML = `
@@ -764,7 +869,43 @@ function renderSettings() {
             <input type="time" id="period-${p.number}-start" value="${p.start}">
             <span class="text-muted">~</span>
             <input type="time" id="period-${p.number}-end" value="${p.end}">
+            <button class="btn-delete-period" data-index="${idx}" title="削除">
+                <i class="fa-solid fa-trash-can"></i>
+            </button>
         `;
+
+        row.querySelector('.btn-delete-period').addEventListener('click', (e) => {
+            const index = parseInt(e.currentTarget.getAttribute('data-index'), 10);
+            const periodNum = state.periods[index].number;
+            
+            // Check if active classes depend on this period
+            const hasClass = state.classes.some(c => Number(c.period) === periodNum);
+            if (hasClass) {
+                if (!confirm(`【警告】この${periodNum}限を使用している授業データが存在します。時限設定を削除すると、その授業の時間割表示が崩れる可能性があります。本当に削除しますか？`)) {
+                    return;
+                }
+            } else {
+                if (!confirm(`${periodNum}限の設定を削除しますか？`)) {
+                    return;
+                }
+            }
+
+            state.periods.splice(index, 1);
+            
+            // Normalize period index numbers (1, 2, 3...)
+            state.periods = state.periods.map((item, i) => ({
+                number: i + 1,
+                start: item.start,
+                end: item.end
+            }));
+            
+            saveData('periods');
+            renderSettings();
+            updateDashboard();
+            renderTodayClasses();
+            scheduleDailyNotifications();
+        });
+
         listContainer.appendChild(row);
     });
 }
@@ -792,6 +933,7 @@ function savePeriodsConfig() {
     
     updateDashboard();
     renderTodayClasses();
+    scheduleDailyNotifications();
 }
 
 function clearHistoryData() {
@@ -871,6 +1013,448 @@ function resetAllApplicationData() {
         renderSettings();
     }
 }
+
+// ==========================================
+// 10. MANABA IMPORT LOGIC
+// ==========================================
+let parsedClassesTemp = []; // Temporary stores parsed classes for preview
+
+function setupManabaImport() {
+    const importModal = document.getElementById('import-modal');
+    const importTrigger = document.getElementById('btn-import-manaba-trigger');
+    const closeImportBtn = document.getElementById('btn-close-import-modal');
+    const parseBtn = document.getElementById('btn-parse-import');
+    const backBtn = document.getElementById('btn-back-import');
+    const submitBtn = document.getElementById('btn-submit-import');
+    const textarea = document.getElementById('import-textarea');
+    
+    const stepPaste = document.getElementById('import-step-paste');
+    const stepPreview = document.getElementById('import-step-preview');
+
+    // Tabs control
+    const tabText = document.getElementById('tab-import-text');
+    const tabImage = document.getElementById('tab-import-image');
+    const textGroup = document.getElementById('import-text-group');
+    const imageGroup = document.getElementById('import-image-group');
+
+    tabText.addEventListener('click', () => {
+        tabText.classList.add('active');
+        tabImage.classList.remove('active');
+        textGroup.classList.remove('hidden');
+        imageGroup.classList.add('hidden');
+    });
+
+    tabImage.addEventListener('click', () => {
+        tabImage.classList.add('active');
+        tabText.classList.remove('active');
+        imageGroup.classList.remove('hidden');
+        textGroup.classList.add('hidden');
+    });
+
+    // Image OCR setup
+    const ocrZone = document.getElementById('ocr-upload-zone');
+    const ocrInput = document.getElementById('input-ocr-image');
+    const ocrLoading = document.getElementById('ocr-loading-container');
+    const ocrStatus = document.getElementById('ocr-loading-status');
+
+    ocrZone.addEventListener('click', () => ocrInput.click());
+
+    ocrInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        ocrLoading.classList.remove('hidden');
+        ocrStatus.textContent = "画像を読み込み中 (Tesseract.js)...";
+
+        Tesseract.recognize(
+            file,
+            'jpn+eng',
+            {
+                logger: m => {
+                    if (m.status === 'recognizing') {
+                        ocrStatus.textContent = `文字を解析中... ${Math.round(m.progress * 100)}%`;
+                    }
+                }
+            }
+        ).then(({ data: { text } }) => {
+            ocrLoading.classList.add('hidden');
+            textarea.value = text;
+            tabText.click(); // Switch back to text view to review
+            alert('画像の文字起こしが完了しました！テキストを確認の上「解析する」を押してください。');
+        }).catch(err => {
+            console.error("Tesseract OCR Error:", err);
+            ocrLoading.classList.add('hidden');
+            alert('画像の解析に失敗しました。別の画像で試すか、テキストをコピーして貼り付けてください。');
+        });
+
+        e.target.value = ''; // Reset input
+    });
+
+    importTrigger.addEventListener('click', () => {
+        textarea.value = '';
+        tabText.click();
+        stepPaste.classList.remove('hidden');
+        stepPreview.classList.add('hidden');
+        importModal.classList.add('active');
+    });
+
+    closeImportBtn.addEventListener('click', () => {
+        importModal.classList.remove('active');
+    });
+
+    backBtn.addEventListener('click', () => {
+        stepPaste.classList.remove('hidden');
+        stepPreview.classList.add('hidden');
+    });
+
+    parseBtn.addEventListener('click', () => {
+        const text = textarea.value.trim();
+        if (!text) {
+            alert('テキストを貼り付けるか、スクリーンショットをアップロードしてください。');
+            return;
+        }
+
+        parsedClassesTemp = parseManabaText(text);
+
+        if (parsedClassesTemp.length === 0) {
+            alert('授業情報を抽出できませんでした。曜日と時限（例: 月1, 火2）が含まれているか確認してください。');
+            return;
+        }
+
+        renderImportPreview();
+        stepPaste.classList.add('hidden');
+        stepPreview.classList.remove('hidden');
+    });
+
+    submitBtn.addEventListener('click', () => {
+        const checkedCheckboxes = document.querySelectorAll('.import-preview-checkbox:checked');
+        if (checkedCheckboxes.length === 0) {
+            alert('登録する授業を1つ以上選択してください。');
+            return;
+        }
+
+        const importMode = document.querySelector('input[name="import-mode"]:checked').value;
+        const classesToImport = [];
+
+        checkedCheckboxes.forEach(cb => {
+            const index = parseInt(cb.getAttribute('data-index'), 10);
+            const tempCls = parsedClassesTemp[index];
+            if (tempCls) {
+                classesToImport.push({
+                    id: 'class-' + (Date.now() + Math.random()).toString(36).replace('.', ''),
+                    name: tempCls.name,
+                    day: tempCls.day,
+                    period: tempCls.period,
+                    room: tempCls.room || '',
+                    urlTemplate: '',
+                    memo: 'manabaインポート'
+                });
+            }
+        });
+
+        if (importMode === 'overwrite') {
+            if (!confirm('現在の時間割データがすべて消去され、選択した授業に上書きされます。よろしいですか？')) {
+                return;
+            }
+            state.classes = classesToImport;
+        } else {
+            // Merge mode
+            let duplicatesCount = 0;
+            const mergedClasses = [...state.classes];
+
+            classesToImport.forEach(newCls => {
+                const dupIndex = mergedClasses.findIndex(c => Number(c.day) === Number(newCls.day) && Number(c.period) === Number(newCls.period));
+                if (dupIndex !== -1) {
+                    mergedClasses[dupIndex] = newCls;
+                    duplicatesCount++;
+                } else {
+                    mergedClasses.push(newCls);
+                }
+            });
+
+            state.classes = mergedClasses;
+            if (duplicatesCount > 0) {
+                alert(`${duplicatesCount}件の重複する時限の授業が新しい授業で上書きされました。`);
+            }
+        }
+
+        saveData('classes');
+        importModal.classList.remove('active');
+        
+        // Refresh views
+        renderTodayClasses();
+        renderTimetableForCurrentTab();
+        updateDashboard();
+        scheduleDailyNotifications();
+        
+        alert(`${classesToImport.length}件の授業を登録しました！`);
+    });
+}
+
+function parseManabaText(text) {
+    const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    const results = [];
+    const dayMap = { '日': 0, '月': 1, '火': 2, '水': 3, '木': 4, '金': 5, '土': 6 };
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const periodsFound = [];
+
+        // 曜日と時限のペアを検出
+        let reg = /([月火水木金土])\s*(?:曜|曜日)?\s*([1-6])(?:限|限目)?/g;
+        let match;
+        while ((match = reg.exec(line)) !== null) {
+            periodsFound.push({
+                dayStr: match[1],
+                periodNum: parseInt(match[2], 10)
+            });
+        }
+
+        // 連続コマ (例: 月1,2 または 火2-3)
+        const compactRegex = /([月火水木金土])\s*(?:曜|曜日)?\s*([1-6])\s*[,，・-]\s*([1-6])/;
+        const compactMatch = line.match(compactRegex);
+        if (compactMatch) {
+            const dStr = compactMatch[1];
+            const p1 = parseInt(compactMatch[2], 10);
+            const p2 = parseInt(compactMatch[3], 10);
+            if (!periodsFound.some(p => p.dayStr === dStr && p.periodNum === p1)) {
+                periodsFound.push({ dayStr: dStr, periodNum: p1 });
+            }
+            if (!periodsFound.some(p => p.dayStr === dStr && p.periodNum === p2)) {
+                periodsFound.push({ dayStr: dStr, periodNum: p2 });
+            }
+        }
+
+        if (periodsFound.length > 0) {
+            let className = "";
+
+            // 1. 同同一行の曜日時限を除去した部分
+            let cleanedLine = line.replace(/([月火水木金土])\s*(?:曜|曜日)?\s*[1-6](?:\s*[,，・-]\s*[1-6])*(?:限|限目)?/g, '').trim();
+            cleanedLine = cleanedLine.replace(/^[-/：:；;\s,，・]+|[-/：:；;\s,，・]+$/g, '').trim();
+
+            if (cleanedLine.length >= 2 && !cleanedLine.includes('/') && !cleanedLine.includes('http') && isNaN(cleanedLine)) {
+                className = cleanedLine;
+            } else if (i > 0) {
+                // 2. 1行上
+                let prevLine = lines[i - 1];
+                if (prevLine.length >= 2 && !prevLine.includes('http') && !prevLine.match(/^[0-9\-\s]{4,}$/)) {
+                    className = prevLine;
+                }
+            }
+
+            if (!className && i > 1) {
+                // 3. 2行上
+                let prev2Line = lines[i - 2];
+                if (prev2Line.length >= 2) {
+                    className = prev2Line;
+                }
+            }
+
+            if (className) {
+                className = className.replace(/\s*[\(（][^）\)]*[\)）]\s*/g, '').trim();
+                className = className.replace(/\[未読.*\]/g, '').trim();
+                className = className.replace(/^[A-Za-z0-9\-\s]{5,}/, '').trim();
+                if (className.length < 2) {
+                    className = lines[i - 1] || lines[i];
+                }
+            } else {
+                className = "検出された授業";
+            }
+
+            periodsFound.forEach(p => {
+                const dayNum = dayMap[p.dayStr];
+                if (!results.some(r => r.name === className && r.day === dayNum && r.period === p.periodNum)) {
+                    results.push({
+                        name: className,
+                        day: dayNum,
+                        period: p.periodNum,
+                        room: ""
+                    });
+                }
+            });
+        }
+    }
+    return results;
+}
+
+function renderImportPreview() {
+    const container = document.getElementById('import-preview-list');
+    container.innerHTML = '';
+
+    parsedClassesTemp.forEach((cls, index) => {
+        const card = document.createElement('div');
+        card.className = 'import-preview-card selected';
+        card.setAttribute('data-index', index);
+        card.innerHTML = `
+            <input type="checkbox" class="import-preview-checkbox" data-index="${index}" checked>
+            <div class="import-preview-info">
+                <h5>${cls.name}</h5>
+                <p>
+                    <span><i class="fa-solid fa-calendar-day"></i> ${DAY_NAMES[cls.day]}</span>
+                    <span><i class="fa-solid fa-clock"></i> ${cls.period}限</span>
+                </p>
+            </div>
+        `;
+
+        card.addEventListener('click', (e) => {
+            const checkbox = card.querySelector('.import-preview-checkbox');
+            if (e.target !== checkbox) {
+                checkbox.checked = !checkbox.checked;
+            }
+            
+            if (checkbox.checked) {
+                card.classList.add('selected');
+            } else {
+                card.classList.remove('selected');
+            }
+            updateImportSubmitButtonCount();
+        });
+
+        card.querySelector('.import-preview-checkbox').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (e.target.checked) {
+                card.classList.add('selected');
+            } else {
+                card.classList.remove('selected');
+            }
+            updateImportSubmitButtonCount();
+        });
+
+        container.appendChild(card);
+    });
+
+    updateImportSubmitButtonCount();
+}
+
+function updateImportSubmitButtonCount() {
+    const checkedCount = document.querySelectorAll('.import-preview-checkbox:checked').length;
+    const submitBtn = document.getElementById('btn-submit-import');
+    submitBtn.textContent = `一括登録 (${checkedCount}件)`;
+}
+
+// ==========================================
+// 11. REMINDER & PUSH NOTIFICATIONS
+// ==========================================
+let notificationTimers = [];
+
+function setupNotifications() {
+    if ('Notification' in window) {
+        if (Notification.permission === 'default') {
+            document.body.addEventListener('click', function requestPerm() {
+                Notification.requestPermission().then(permission => {
+                    console.log('Push notification permission:', permission);
+                    if (permission === 'granted') {
+                        scheduleDailyNotifications();
+                    }
+                });
+                document.body.removeEventListener('click', requestPerm);
+            }, { once: true });
+        }
+    }
+}
+
+function scheduleDailyNotifications() {
+    notificationTimers.forEach(clearTimeout);
+    notificationTimers = [];
+
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+    const now = new Date();
+    const todayNum = now.getDay();
+    if (todayNum === 0) return; // Sunday
+
+    const todayClasses = state.classes.filter(c => Number(c.day) === todayNum);
+    const todayDateStr = now.toISOString().slice(0, 10);
+
+    todayClasses.forEach(cls => {
+        const period = state.periods.find(p => p.number === Number(cls.period));
+        if (!period) return;
+
+        const [sh, sm] = period.start.split(':').map(Number);
+        const startTime = new Date();
+        startTime.setHours(sh, sm, 0, 0);
+
+        // Schedule notification for 10 minutes before class starts
+        const targetTime = new Date(startTime.getTime() - 10 * 60 * 1000);
+        const delay = targetTime.getTime() - now.getTime();
+
+        if (delay > 0) {
+            const timer = setTimeout(() => {
+                const attended = state.history.some(h => {
+                    const hDate = new Date(h.timestamp).toISOString().slice(0, 10);
+                    return h.classId === cls.id && hDate === todayDateStr;
+                });
+
+                if (!attended) {
+                    new Notification("出席リマインダー", {
+                        body: `授業「${cls.name}」が10分後に始まります。出席登録はしましたか？`,
+                        icon: 'icon-192.png'
+                    });
+                }
+            }, delay);
+            notificationTimers.push(timer);
+        }
+    });
+}
+
+function checkAttendanceReminders() {
+    const alertBox = document.getElementById('attendance-warning-alert');
+    const alertText = document.getElementById('attendance-warning-text');
+    
+    if (!alertBox || !alertText) return;
+
+    const now = new Date();
+    const todayNum = now.getDay();
+    if (todayNum === 0) {
+        alertBox.classList.add('hidden');
+        return;
+    }
+
+    const todayDateStr = now.toISOString().slice(0, 10);
+    const getMinutes = (t) => {
+        const [h, m] = t.split(':').map(Number);
+        return h * 60 + m;
+    };
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+
+    const todayClasses = state.classes.filter(c => Number(c.day) === todayNum);
+    const missedClasses = [];
+
+    todayClasses.forEach(cls => {
+        const period = state.periods.find(p => p.number === Number(cls.period));
+        if (!period) return;
+
+        const startMins = getMinutes(period.start);
+        
+        // Alert if time is 15 mins before starting (or anytime after)
+        if (nowMins >= (startMins - 15)) {
+            const attended = state.history.some(h => {
+                const hDate = new Date(h.timestamp).toISOString().slice(0, 10);
+                return h.classId === cls.id && hDate === todayDateStr;
+            });
+
+            if (!attended) {
+                missedClasses.push(cls.name);
+            }
+        }
+    });
+
+    if (missedClasses.length > 0) {
+        alertBox.classList.remove('hidden');
+        alertText.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <strong>出席忘れ警告:</strong> ${missedClasses.join(', ')} の出席登録がまだの可能性があります。`;
+    } else {
+        alertBox.classList.add('hidden');
+    }
+}
+
+// Hook checkAttendanceReminders inside clock loop / dashboard updates
+// Modify updateDashboard to include reminder check
+const originalUpdateDashboard = updateDashboard;
+updateDashboard = function() {
+    originalUpdateDashboard();
+    checkAttendanceReminders();
+};
+
 
 // ==========================================
 // 10. MANABA IMPORT LOGIC

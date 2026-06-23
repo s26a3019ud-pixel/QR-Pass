@@ -24,6 +24,9 @@
     
     <!-- jsQR Library for scanning -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    
+    <!-- Tesseract.js for OCR -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
 </head>
 <body>
     <!-- App Container -->
@@ -61,6 +64,16 @@
                             <i class="fa-solid fa-arrow-up-right-from-square"></i>
                             <span>前回のURLを開く</span>
                         </a>
+                    </div>
+                </div>
+
+                <!-- Attendance Reminder Alert -->
+                <div id="attendance-warning-alert" class="alert-warning-card hidden" style="margin-bottom: 20px;">
+                    <div class="alert-content">
+                        <i class="fa-solid fa-circle-exclamation alert-icon"></i>
+                        <div class="alert-text">
+                            <span id="attendance-warning-text">未出席の授業があります</span>
+                        </div>
                     </div>
                 </div>
 
@@ -126,7 +139,12 @@
                 <h3>設定・データ管理</h3>
                 
                 <div class="settings-section">
-                    <h4>時限の時間設定</h4>
+                    <div class="section-header-row" style="margin-bottom: 16px;">
+                        <h4 style="margin-bottom: 0; border-bottom: none; padding-bottom: 0;">時限の時間設定</h4>
+                        <button id="btn-add-period" class="btn btn-secondary btn-sm" style="width: auto; padding: 4px 8px; font-size: 0.75rem;">
+                            <i class="fa-solid fa-plus"></i> 時限を追加
+                        </button>
+                    </div>
                     <div id="period-settings-list" class="period-settings-list">
                         <!-- Dynamic list of periods -->
                     </div>
@@ -199,6 +217,16 @@
                 </div>
                 <div class="scanner-footer">
                     <p id="scanner-status" class="status-text">カメラの起動中...</p>
+                    
+                    <!-- File Scan Fallback -->
+                    <div id="scanner-fallback-container" style="margin-top: 8px; margin-bottom: 12px;">
+                        <span class="divider-text" style="font-size:0.7rem; margin-bottom: 8px;">または</span>
+                        <button id="btn-scan-file-trigger" class="btn btn-secondary btn-sm" style="width: auto; padding: 6px 12px; font-size: 0.8rem;">
+                            <i class="fa-solid fa-image"></i> 写真・スクショから読取
+                        </button>
+                        <input type="file" id="input-scan-file" class="hidden" accept="image/*">
+                    </div>
+
                     <div id="scanned-result-preview" class="scanned-result-preview hidden">
                         <span class="detected-badge">検出完了</span>
                         <p id="detected-url-text" class="detected-url">https://...</p>
@@ -289,14 +317,39 @@
                     </button>
                 </div>
                 <div class="modal-body">
-                    <!-- Step 1: Text Paste -->
+                    <!-- Step 1: Text Paste & Image OCR Tab -->
                     <div id="import-step-paste">
-                        <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 12px; line-height: 1.4;">
-                            PCやスマホのブラウザでmanabaの「コース一覧」画面を開き、ページ全体（Ctrl+A等）をコピーして、下の枠内にそのまま貼り付けてください。
-                        </p>
-                        <div class="form-group">
-                            <textarea id="import-textarea" rows="8" placeholder="ここにmanabaのテキストを貼り付け...&#10;&#10;例:&#10;英語コミュニケーションI&#10;123456 / 月1 / 山田太郎"></textarea>
+                        <div class="import-tabs" style="display: flex; gap: 8px; margin-bottom: 16px; background: rgba(255,255,255,0.02); padding: 4px; border-radius: 8px;">
+                            <button id="tab-import-text" class="tab-day active" style="padding: 6px 0; font-size: 0.8rem;">テキストコピペ</button>
+                            <button id="tab-import-image" class="tab-day" style="padding: 6px 0; font-size: 0.8rem;">時間割のスクショ</button>
                         </div>
+
+                        <!-- Text paste container -->
+                        <div id="import-text-group">
+                            <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 12px; line-height: 1.4;">
+                                PCやスマホのブラウザでmanabaの「コース一覧」画面を開き、ページ全体（Ctrl+A等）をコピーして、下の枠内にそのまま貼り付けてください。
+                            </p>
+                            <div class="form-group">
+                                <textarea id="import-textarea" rows="8" placeholder="ここにmanabaのテキストを貼り付け...&#10;&#10;例:&#10;英語コミュニケーションI&#10;123456 / 月1 / 山田太郎"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Image upload container -->
+                        <div id="import-image-group" class="hidden">
+                            <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 12px; line-height: 1.4;">
+                                manabaの「コース一覧」または時間割画面のスクリーンショット画像を選択してください。AI（OCR）が画像から文字を読み取って自動解析します。
+                            </p>
+                            <div class="image-upload-zone" id="ocr-upload-zone" style="border: 2px dashed rgba(255,255,255,0.1); border-radius: 16px; padding: 30px 20px; text-align: center; cursor: pointer; transition: var(--transition-smooth); margin-bottom: 16px; background: rgba(255,255,255,0.01);">
+                                <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2rem; color: var(--text-muted); margin-bottom: 10px;"></i>
+                                <p style="font-size: 0.85rem; color: var(--text-secondary);">スクショ画像をドロップするか、タップして選択</p>
+                                <input type="file" id="input-ocr-image" class="hidden" accept="image/*">
+                            </div>
+                            <div id="ocr-loading-container" class="hidden" style="text-align: center; margin-bottom: 16px; padding: 10px; background: rgba(255,255,255,0.02); border-radius: 12px;">
+                                <i class="fa-solid fa-spinner fa-spin" style="color: var(--accent-primary); font-size: 1.4rem; margin-bottom: 8px;"></i>
+                                <p id="ocr-loading-status" style="font-size: 0.8rem; color: var(--text-secondary);">画像を準備中...</p>
+                            </div>
+                        </div>
+
                         <button id="btn-parse-import" class="btn btn-primary">
                             <i class="fa-solid fa-wand-magic-sparkles"></i> 解析する
                         </button>

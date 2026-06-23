@@ -39,7 +39,7 @@ body {
     font-family: var(--font-sans);
     line-height: 1.5;
     overflow: hidden;
-    height: 100vh;
+    height: 100dvh;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -49,7 +49,7 @@ body {
 .app-container {
     width: 100%;
     max-width: 480px;
-    height: 100vh;
+    height: 100dvh;
     background-color: var(--bg-color);
     display: flex;
     flex-direction: column;
@@ -113,7 +113,7 @@ body {
 .app-main {
     flex: 1;
     overflow-y: auto;
-    padding: 20px 20px 90px 20px; /* space for nav */
+    padding: 20px 20px calc(90px + env(safe-area-inset-bottom)) 20px; /* space for nav + safe area */
     position: relative;
 }
 
@@ -621,14 +621,14 @@ body {
     bottom: 0;
     left: 0;
     right: 0;
-    height: 72px;
+    height: calc(72px + env(safe-area-inset-bottom));
     background-color: var(--nav-bg);
     backdrop-filter: blur(20px);
     border-top: 1px solid var(--card-border);
     display: flex;
     justify-content: space-around;
     align-items: center;
-    padding: 0 10px;
+    padding: 0 10px env(safe-area-inset-bottom) 10px;
     z-index: 10;
 }
 
@@ -1059,4 +1059,62 @@ body {
     display: flex;
     gap: 10px;
 }
+
+/* Attendance Warning Alert */
+.alert-warning-card {
+    background: rgba(244, 63, 94, 0.15);
+    border: 1px solid rgba(244, 63, 94, 0.3);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 4px 15px rgba(244, 63, 94, 0.1);
+    animation: slideUp 0.3s ease;
+}
+
+.alert-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.alert-icon {
+    font-size: 1.3rem;
+    color: var(--danger);
+}
+
+.alert-text {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+/* Image Upload Area */
+.image-upload-zone:hover {
+    border-color: var(--accent-primary) !important;
+    background: rgba(56, 189, 248, 0.03) !important;
+}
+
+.import-tabs .tab-day {
+    padding: 8px 0;
+}
+
+/* Delete button in period settings */
+.btn-delete-period {
+    color: var(--danger);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    transition: var(--transition-smooth);
+}
+
+.btn-delete-period:hover {
+    background: rgba(244, 63, 94, 0.1);
+}
+
 
