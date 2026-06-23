@@ -1423,29 +1423,70 @@ function scheduleDailyNotifications() {
                 const attended = state.history.some(h => {
                     const hDate = new Date(h.timestamp).toISOString().slice(0, 10);
                     return h.classId === cls.id && hDate === todayDateStr;
-       );
-                if (className.length < 2) {
-                    className = lines[i - 1] || lines[i];
-                }
-            } else {
-                className = "検出された授業";
-            }
+                });
 
-            periodsFound.forEach(p => {
-                const dayNum = dayMap[p.dayStr];
-                if (!results.some(r => r.name === className && r.day === dayNum && r.period === p.periodNum)) {
-                    results.push({
-                        name: className,
-                        day: dayNum,
-                        period: p.periodNum,
-                        room: ""
+                if (!attended) {
+                    new Notification("出席リマインダー", {
+                        body: `授業「${cls.name}」が10分後に始まります。出席登録はしましたか？`,
+                        icon: 'icon-192.png'
                     });
                 }
-            });
+            }, delay);
+            notificationTimers.push(timer);
         }
-    }
-    return results;
+    });
 }
+
+function checkAttendanceReminders() {
+    const alertBox = document.getElementById('attendance-warning-alert');
+    const alertText = document.getElementById('attendance-warning-text');
+    
+    if (!alertBox || !alertText) return;
+
+    const now = new Date();
+    const todayNum = now.getDay();
+    if (todayNum === 0) {
+        alertBox.classList.add('hidden');
+        return;
+    }
+
+    const todayDateStr = now.toISOString().slice(0, 10);
+    const getMinutes = (t) => {
+        const [h, m] = t.split(':').map(Number);
+        return h * 60 + m;
+    };
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+
+    const todayClasses = state.classes.filter(c => Number(c.day) === todayNum);
+    const missedClasses = [];
+
+    todayClasses.forEach(cls => {
+        const period = state.periods.find(p => p.number === Number(cls.period));
+        if (!period) return;
+
+        const startMins = getMinutes(period.start);
+        
+        // Alert if time is 15 mins before starting (or anytime after)
+        if (nowMins >= (startMins - 15)) {
+            const attended = state.history.some(h => {
+                const hDate = new Date(h.timestamp).toISOString().slice(0, 10);
+                return h.classId === cls.id && hDate === todayDateStr;
+            });
+
+            if (!attended) {
+                missedClasses.push(cls.name);
+            }
+        }
+    });
+
+    if (missedClasses.length > 0) {
+        alertBox.classList.remove('hidden');
+        alertText.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <strong>出席忘れ警告:</strong> ${missedClasses.join(', ')} の出席登録がまだの可能性があります。`;
+    } else {
+        alertBox.classList.add('hidden');
+    }
+}
+
 
 function renderImportPreview() {
     const container = document.getElementById('import-preview-list');
