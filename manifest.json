@@ -1,0 +1,22 @@
+{
+  "name": "QR-Pass 授業出席一元管理",
+  "short_name": "QR-Pass",
+  "description": "大学の授業出席QRコードを一元管理し、ワンタップで出席登録を行えるアプリです。",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0b0f19",
+  "theme-color": "#0f172a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}

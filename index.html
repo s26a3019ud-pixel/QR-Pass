@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>QR-Pass | 授業出席一元管理</title>
+    
+    <!-- PWA meta tags -->
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- App stylesheet -->
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- jsQR Library for scanning -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+</head>
+<body>
+    <!-- App Container -->
+    <div id="app" class="app-container">
+        
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo">
+                <i class="fa-solid fa-qrcode logo-icon"></i>
+                <span class="logo-text">QR-<span class="highlight">Pass</span></span>
+            </div>
+            <div class="header-actions">
+                <span id="current-time-display" class="time-display">00:00</span>
+            </div>
+        </header>
+
+        <!-- Main Content (Screens) -->
+        <main class="app-main">
+            <!-- 1. HOME SCREEN -->
+            <section id="screen-home" class="app-screen active">
+                <div class="dashboard-card main-action-card">
+                    <div class="card-glass-glow"></div>
+                    <div class="current-status-info">
+                        <span class="status-badge" id="current-period-badge">判定中...</span>
+                        <h2 id="current-class-name">授業情報を読み込み中</h2>
+                        <p id="current-class-details"><span id="current-class-time">--:-- ~ --:--</span> | <span id="current-class-room">--</span></p>
+                    </div>
+                    <button id="btn-quick-scan" class="btn btn-primary btn-glow">
+                        <i class="fa-solid fa-camera"></i>
+                        <span>出席QRをスキャン</span>
+                    </button>
+                    <div id="quick-url-container" class="quick-url-container hidden">
+                        <span class="divider-text">または前回のURLで出席</span>
+                        <a id="btn-last-attend-url" href="#" target="_blank" class="btn btn-secondary">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                            <span>前回のURLを開く</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="section-title">
+                    <h3>今日の時間割</h3>
+                    <span id="today-date-string">月曜日</span>
+                </div>
+                
+                <div id="today-classes-list" class="classes-list-container">
+                    <!-- Dynamic rendering -->
+                    <div class="empty-state">
+                        <i class="fa-solid fa-calendar-day"></i>
+                        <p>今日の授業はありません</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. TIMETABLE SCREEN -->
+            <section id="screen-timetable" class="app-screen">
+                <div class="section-header-row">
+                    <h3>週課表</h3>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button id="btn-import-manaba-trigger" class="btn btn-secondary btn-sm" style="width: auto; padding: 6px 12px; font-size: 0.8rem; font-weight: 500;">
+                            <i class="fa-solid fa-file-import"></i> manabaからインポート
+                        </button>
+                        <button id="btn-add-class-timetable" class="btn-icon" style="width: 32px; height: 32px; border-radius: 8px;">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="timetable-tabs">
+                    <button class="tab-day active" data-day="1">月</button>
+                    <button class="tab-day" data-day="2">火</button>
+                    <button class="tab-day" data-day="3">水</button>
+                    <button class="tab-day" data-day="4">木</button>
+                    <button class="tab-day" data-day="5">金</button>
+                    <button class="tab-day" data-day="6">土</button>
+                </div>
+
+                <div id="timetable-day-content" class="timetable-list">
+                    <!-- Dynamic rendering for selected day -->
+                </div>
+            </section>
+
+            <!-- 3. HISTORY SCREEN -->
+            <section id="screen-history" class="app-screen">
+                <div class="section-header-row">
+                    <h3>出席履歴</h3>
+                    <button id="btn-clear-history" class="btn-text-danger">すべて消去</button>
+                </div>
+                <div id="history-list-container" class="history-list">
+                    <!-- Dynamic rendering -->
+                    <div class="empty-state">
+                        <i class="fa-solid fa-history"></i>
+                        <p>出席履歴がありません</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. SETTINGS SCREEN -->
+            <section id="screen-settings" class="app-screen">
+                <h3>設定・データ管理</h3>
+                
+                <div class="settings-section">
+                    <h4>時限の時間設定</h4>
+                    <div id="period-settings-list" class="period-settings-list">
+                        <!-- Dynamic list of periods -->
+                    </div>
+                    <button id="btn-save-periods" class="btn btn-secondary btn-sm">時限設定を保存</button>
+                </div>
+
+                <div class="settings-section">
+                    <h4>データ操作</h4>
+                    <div class="danger-zone">
+                        <button id="btn-export-data" class="btn btn-secondary">
+                            <i class="fa-solid fa-download"></i> バックアップ書き出し
+                        </button>
+                        <button id="btn-import-data-trigger" class="btn btn-secondary">
+                            <i class="fa-solid fa-upload"></i> バックアップ読み込み
+                        </button>
+                        <input type="file" id="input-import-data" class="hidden" accept=".json">
+                        <button id="btn-reset-all" class="btn btn-danger">
+                            <i class="fa-solid fa-trash-can"></i> 全データ初期化
+                        </button>
+                    </div>
+                </div>
+
+                <div class="settings-section app-info">
+                    <h4>アプリについて</h4>
+                    <p>QR-Pass v1.0.0</p>
+                    <p class="text-muted">大学の授業出席QRを一元管理するための完全オフライン動作アプリです。データはブラウザのLocalStorageにのみ保存されます。</p>
+                </div>
+            </section>
+        </main>
+
+        <!-- Bottom Navigation Bar -->
+        <nav class="app-nav">
+            <button class="nav-item active" data-screen="home">
+                <i class="fa-solid fa-house-chimney"></i>
+                <span>ホーム</span>
+            </button>
+            <button class="nav-item" data-screen="timetable">
+                <i class="fa-solid fa-calendar-days"></i>
+                <span>時間割</span>
+            </button>
+            <button class="nav-item" data-screen="history">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                <span>履歴</span>
+            </button>
+            <button class="nav-item" data-screen="settings">
+                <i class="fa-solid fa-sliders"></i>
+                <span>設定</span>
+            </button>
+        </nav>
+        
+        <!-- Scanner Overlay -->
+        <div id="scanner-overlay" class="scanner-overlay hidden">
+            <div class="scanner-container">
+                <div class="scanner-header">
+                    <h3>QRコードスキャン</h3>
+                    <button id="btn-close-scanner" class="btn-close">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="video-wrapper">
+                    <video id="scanner-video" playsinline></video>
+                    <canvas id="scanner-canvas" class="hidden"></canvas>
+                    <div class="scanner-guide">
+                        <div class="guide-corner top-left"></div>
+                        <div class="guide-corner top-right"></div>
+                        <div class="guide-corner bottom-left"></div>
+                        <div class="guide-corner bottom-right"></div>
+                        <div class="laser"></div>
+                    </div>
+                </div>
+                <div class="scanner-footer">
+                    <p id="scanner-status" class="status-text">カメラの起動中...</p>
+                    <div id="scanned-result-preview" class="scanned-result-preview hidden">
+                        <span class="detected-badge">検出完了</span>
+                        <p id="detected-url-text" class="detected-url">https://...</p>
+                        <div class="scanned-actions">
+                            <button id="btn-confirm-attend" class="btn btn-primary">出席ページを開く</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Class Modal (Add/Edit) -->
+        <div id="class-modal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modal-title">授業の登録</h3>
+                    <button id="btn-close-modal" class="btn-close">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <form id="class-form" class="modal-body">
+                    <input type="hidden" id="form-class-id">
+                    
+                    <div class="form-group">
+                        <label for="form-class-name">授業名 <span class="required">*</span></label>
+                        <input type="text" id="form-class-name" placeholder="例: 英語コミュニケーションI" required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="form-class-day">曜日 <span class="required">*</span></label>
+                            <select id="form-class-day" required>
+                                <option value="1">月曜日</option>
+                                <option value="2">火曜日</option>
+                                <option value="3">水曜日</option>
+                                <option value="4">木曜日</option>
+                                <option value="5">金曜日</option>
+                                <option value="6">土曜日</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="form-class-period">時限 <span class="required">*</span></label>
+                            <select id="form-class-period" required>
+                                <option value="1">1限</option>
+                                <option value="2">2限</option>
+                                <option value="3">3限</option>
+                                <option value="4">4限</option>
+                                <option value="5">5限</option>
+                                <option value="6">6限</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="form-class-room">教室 / 教室番号</label>
+                        <input type="text" id="form-class-room" placeholder="例: 301号室, オンライン">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="form-class-url">固定出席URL (ある場合のみ)</label>
+                        <input type="url" id="form-class-url" placeholder="https://...">
+                        <small class="form-help">毎回URLが変わる授業の場合は空欄でOKです。スキャン時に自動で履歴に保存されます。</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="form-class-memo">メモ</label>
+                        <textarea id="form-class-memo" rows="2" placeholder="ログインIDや注意点など"></textarea>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" id="btn-delete-class" class="btn btn-danger hidden">削除</button>
+                        <div class="footer-actions">
+                            <button type="button" id="btn-cancel-modal" class="btn btn-secondary">キャンセル</button>
+                            <button type="submit" id="btn-save-class" class="btn btn-primary">保存</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- manaba Import Modal -->
+        <div id="import-modal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>manabaからインポート</h3>
+                    <button id="btn-close-import-modal" class="btn-close">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <!-- Step 1: Text Paste -->
+                    <div id="import-step-paste">
+                        <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 12px; line-height: 1.4;">
+                            PCやスマホのブラウザでmanabaの「コース一覧」画面を開き、ページ全体（Ctrl+A等）をコピーして、下の枠内にそのまま貼り付けてください。
+                        </p>
+                        <div class="form-group">
+                            <textarea id="import-textarea" rows="8" placeholder="ここにmanabaのテキストを貼り付け...&#10;&#10;例:&#10;英語コミュニケーションI&#10;123456 / 月1 / 山田太郎"></textarea>
+                        </div>
+                        <button id="btn-parse-import" class="btn btn-primary">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> 解析する
+                        </button>
+                    </div>
+
+                    <!-- Step 2: Preview & Register -->
+                    <div id="import-step-preview" class="hidden">
+                        <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 12px;">
+                            以下の授業が検出されました。登録する授業を選択してください。
+                        </p>
+                        
+                        <div id="import-preview-list" class="classes-list-container" style="max-height: 250px; overflow-y: auto; margin-bottom: 20px; padding: 4px;">
+                            <!-- Dynamic preview cards -->
+                        </div>
+
+                        <div class="form-group" style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.04);">
+                            <label style="font-size: 0.8rem; margin-bottom: 8px; display: block; color: var(--text-secondary); font-weight: 500;">登録方法</label>
+                            <div style="display: flex; gap: 16px;">
+                                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer;">
+                                    <input type="radio" name="import-mode" value="merge" checked> 既存データに追加
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer;">
+                                    <input type="radio" name="import-mode" value="overwrite"> 時間割を上書き
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="modal-footer" style="margin-top: 10px;">
+                            <button type="button" id="btn-back-import" class="btn btn-secondary">戻る</button>
+                            <div class="footer-actions">
+                                <button type="button" id="btn-submit-import" class="btn btn-primary">一括登録 (0件)</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    
+    <!-- App Logic -->
+    <script src="app.js"></script>
+</body>
+</html>
