@@ -667,6 +667,37 @@ function startScanning(targetClass = null) {
             video.setAttribute("playsinline", true);
             video.setAttribute("autoplay", true);
             video.setAttribute("muted", true);
+
+            // Camera Zoom Capabilities Resolution
+            const track = mediaStream.getVideoTracks()[0];
+            if (track && typeof track.getCapabilities === 'function') {
+                const capabilities = track.getCapabilities();
+                if (capabilities.zoom) {
+                    const zoomContainer = document.getElementById('camera-zoom-container');
+                    const zoomSlider = document.getElementById('camera-zoom-slider');
+                    const zoomLabel = document.getElementById('camera-zoom-label');
+                    
+                    if (zoomContainer && zoomSlider && zoomLabel) {
+                        zoomSlider.min = capabilities.zoom.min || 1;
+                        zoomSlider.max = capabilities.zoom.max || 5;
+                        zoomSlider.step = capabilities.zoom.step || 0.1;
+                        zoomSlider.value = 1.0; // Reset zoom to 1.0x on start
+                        zoomLabel.textContent = "1.0x";
+                        
+                        zoomContainer.classList.remove('hidden');
+                        
+                        zoomSlider.oninput = function(e) {
+                            const val = parseFloat(e.target.value);
+                            zoomLabel.textContent = `${val.toFixed(1)}x`;
+                            track.applyConstraints({
+                                advanced: [{ zoom: val }]
+                            }).catch(err => {
+                                console.warn("Failed to apply zoom constraints:", err);
+                            });
+                        };
+                    }
+                }
+            }
             
             // Wait for metadata to load before calling play() on iOS
             video.onloadedmetadata = function() {
@@ -772,6 +803,17 @@ function stopScanningApp() {
         cancelAnimationFrame(animationFrameId);
         animationFrameId = null;
     }
+
+    // Hide and clean up zoom control
+    const zoomContainer = document.getElementById('camera-zoom-container');
+    const zoomSlider = document.getElementById('camera-zoom-slider');
+    if (zoomContainer) {
+        zoomContainer.classList.add('hidden');
+    }
+    if (zoomSlider) {
+        zoomSlider.oninput = null;
+    }
+
     scannerOverlay.classList.remove('active');
     updateDashboard(); // Refresh URL shortcuts in dashboard
 }
