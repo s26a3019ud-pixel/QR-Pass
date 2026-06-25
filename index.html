@@ -47,23 +47,12 @@
         <main class="app-main">
             <!-- 1. HOME SCREEN -->
             <section id="screen-home" class="app-screen active">
-                <div class="dashboard-card main-action-card">
+                <div class="dashboard-card">
                     <div class="card-glass-glow"></div>
                     <div class="current-status-info">
                         <span class="status-badge" id="current-period-badge">判定中...</span>
                         <h2 id="current-class-name">授業情報を読み込み中</h2>
                         <p id="current-class-details"><span id="current-class-time">--:-- ~ --:--</span> | <span id="current-class-room">--</span></p>
-                    </div>
-                    <button id="btn-quick-scan" class="btn btn-primary btn-glow">
-                        <i class="fa-solid fa-camera"></i>
-                        <span>出席QRをスキャン</span>
-                    </button>
-                    <div id="quick-url-container" class="quick-url-container hidden">
-                        <span class="divider-text">または前回のURLで出席</span>
-                        <a id="btn-last-attend-url" href="#" target="_blank" class="btn btn-secondary">
-                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                            <span>前回のURLを開く</span>
-                        </a>
                     </div>
                 </div>
 
@@ -151,6 +140,19 @@
                     </div>
                     
                     <div id="notification-content" class="notification-content hidden" style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; animation: slideUp 0.3s ease;">
+                        <div class="notification-item" style="margin-bottom: 16px; border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 12px;">
+                            <div class="notif-meta" style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">
+                                <span class="notif-version" style="font-weight: 600; color: var(--accent-primary);">v1.4.0</span>
+                                <span class="notif-date">2026/06/25</span>
+                            </div>
+                            <h5 class="notif-title" style="font-size: 0.85rem; font-weight: 600; margin-bottom: 8px;">UIスリム化・前期後期マーク・空きコマ明示 & コマ二倍化！</h5>
+                            <ul class="notif-list" style="margin-left: 16px; font-size: 0.75rem; color: var(--text-secondary); line-height: 1.6; display: flex; flex-direction: column; gap: 4px;">
+                                <li>✨ <strong>ホーム画面のスリム化</strong>: 開講中の授業カードから「スキャン」や「前回のURL」ボタンを削除し、スッキリした見た目に。</li>
+                                <li>🔗 <strong>カードタップで直接出席URL遷移</strong>: ホーム画面の授業カードをタップすると、URL登録済みであれば直接ブラウザで開くように。</li>
+                                <li>📅 <strong>前期・後期マークの追加</strong>: 授業ごとに学期（前期/後期/通年）を設定でき、時間割にバッジが表示されます。</li>
+                                <li>🕳️ <strong>空きコマの明示 ＆ 授業コマの二倍表示</strong>: 時間割画面で、授業のないコマは「授業なし（空きコマ）」とコンパクトに表示され、タップで新規追加が可能。授業があるコマは「大きく（二倍）」表示されるようになり、メリハリを強化。</li>
+                            </ul>
+                        </div>
                         <div class="notification-item" style="margin-bottom: 16px; border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 12px;">
                             <div class="notif-meta" style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">
                                 <span class="notif-version" style="font-weight: 600; color: var(--accent-primary);">v1.3.0</span>
@@ -243,7 +245,7 @@
 
                 <div class="settings-section app-info">
                     <h4>アプリについて</h4>
-                    <p>QR-Pass v1.3.0</p>
+                    <p>QR-Pass v1.4.0</p>
                     <p class="text-muted">大学の授業出席QRを一元管理するための完全オフライン動作アプリです。データはブラウザのLocalStorageにのみ保存されます。</p>
                 </div>
             </section>
@@ -337,6 +339,15 @@
                     </div>
 
                     <div class="form-row">
+                    <div class="form-group">
+                        <label for="form-class-semester">学期 <span class="required">*</span></label>
+                        <select id="form-class-semester" required>
+                            <option value="前期" selected>前期</option>
+                            <option value="後期">後期</option>
+                            <option value="通年">通年</option>
+                        </select>
+                    </div>
+                    <div class="form-grid">
                         <div class="form-group">
                             <label for="form-class-day">曜日 <span class="required">*</span></label>
                             <select id="form-class-day" required>
