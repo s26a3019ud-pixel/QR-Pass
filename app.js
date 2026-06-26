@@ -200,7 +200,6 @@ function updateDashboard() {
             timeEl.textContent = "--:--";
             roomEl.textContent = "--";
         }
-        quickUrlContainer.classList.add('hidden');
     }
     // Directly check for attendance reminders inside dashboard loop
     checkAttendanceReminders();
