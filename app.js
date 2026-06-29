@@ -610,10 +610,13 @@ let scanTargetClass = null; // Class context for scanning
 let isScanningActive = false;
 
 function setupQRScanner() {
-    document.getElementById('btn-quick-scan').addEventListener('click', () => {
-        const activeInfo = getCurrentPeriodClass();
-        startScanning(activeInfo ? activeInfo.classData : null);
-    });
+    const btnQuickScan = document.getElementById('btn-quick-scan');
+    if (btnQuickScan) {
+        btnQuickScan.addEventListener('click', () => {
+            const activeInfo = getCurrentPeriodClass();
+            startScanning(activeInfo ? activeInfo.classData : null);
+        });
+    }
 
     document.getElementById('btn-close-scanner').addEventListener('click', stopScanningApp);
     

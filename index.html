@@ -142,6 +142,16 @@
                     <div id="notification-content" class="notification-content hidden" style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; animation: slideUp 0.3s ease;">
                         <div class="notification-item" style="margin-bottom: 16px; border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 12px;">
                             <div class="notif-meta" style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">
+                                <span class="notif-version" style="font-weight: 600; color: var(--accent-primary);">v1.4.2</span>
+                                <span class="notif-date">2026/06/29</span>
+                            </div>
+                            <h5 class="notif-title" style="font-size: 0.85rem; font-weight: 600; margin-bottom: 8px;">バグ修正（×ボタン ＆ 写真から読取ボタン）</h5>
+                            <ul class="notif-list" style="margin-left: 16px; font-size: 0.75rem; color: var(--text-secondary); line-height: 1.6; display: flex; flex-direction: column; gap: 4px;">
+                                <li>🐛 <strong>スキャン画面ボタンの修正</strong>: 存在しないボタン（btn-quick-scan）に対してイベント登録を行っていたためのJSエラーを解消し、スキャン画面の「×」ボタンと「写真から読取」ボタンが正常に動作するように修正しました。</li>
+                            </ul>
+                        </div>
+                        <div class="notification-item" style="margin-bottom: 16px; border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 12px;">
+                            <div class="notif-meta" style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">
                                 <span class="notif-version" style="font-weight: 600; color: var(--accent-primary);">v1.4.1</span>
                                 <span class="notif-date">2026/06/26</span>
                             </div>
@@ -255,7 +265,7 @@
 
                 <div class="settings-section app-info">
                     <h4>アプリについて</h4>
-                    <p>QR-Pass v1.4.1</p>
+                    <p>QR-Pass v1.4.2</p>
                     <p class="text-muted">大学の授業出席QRを一元管理するための完全オフライン動作アプリです。データはブラウザのLocalStorageにのみ保存されます。</p>
                 </div>
             </section>
