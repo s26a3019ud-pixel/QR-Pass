@@ -1,4 +1,260 @@
 {
+  "classes": [
+    {
+      "id": "class-mqrbd5uu",
+      "name": "言語と文化1 ドイツ語",
+      "semester": "前期",
+      "day": 1,
+      "period": 1,
+      "room": "5303",
+      "urlTemplate": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/5303",
+      "memo": ""
+    },
+    {
+      "id": "class-mqrbdup5",
+      "name": "線形代数",
+      "semester": "前期",
+      "day": 3,
+      "period": 1,
+      "room": "8108",
+      "urlTemplate": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/8108",
+      "memo": ""
+    },
+    {
+      "id": "class-mqrbl3bg",
+      "name": "線形代数",
+      "day": 3,
+      "period": 2,
+      "room": "8108",
+      "urlTemplate": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/8108",
+      "memo": ""
+    },
+    {
+      "id": "class-mqrfa7iu",
+      "name": "日本語表現法",
+      "semester": "前期",
+      "day": 3,
+      "period": 3,
+      "room": "5303",
+      "urlTemplate": "https://attendance.is.it-chiba.ac.jp/attendance/top",
+      "memo": ""
+    },
+    {
+      "id": "class-mqrlrgw5",
+      "name": "物理学基礎",
+      "semester": "前期",
+      "day": 3,
+      "period": 6,
+      "room": "5208",
+      "urlTemplate": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/5208",
+      "memo": ""
+    },
+    {
+      "id": "class-mqsqmpf3",
+      "name": "日本語表現法",
+      "day": 3,
+      "period": 4,
+      "room": "",
+      "urlTemplate": "",
+      "memo": ""
+    },
+    {
+      "id": "class-mqsqmweh",
+      "name": "物理学基礎",
+      "day": 3,
+      "period": 7,
+      "room": "",
+      "urlTemplate": "",
+      "memo": ""
+    },
+    {
+      "id": "class-mqsqn4tv",
+      "name": "物理学基礎",
+      "day": 3,
+      "period": 8,
+      "room": "",
+      "urlTemplate": "",
+      "memo": ""
+    },
+    {
+      "id": "class-mqsqnh2v",
+      "name": "言語と文化1 ドイツ語",
+      "day": 1,
+      "period": 2,
+      "room": "",
+      "urlTemplate": "",
+      "memo": ""
+    },
+    {
+      "id": "class-mqsqnv3t",
+      "name": "英語表現1",
+      "semester": "前期",
+      "day": 4,
+      "period": 2,
+      "room": "5204",
+      "urlTemplate": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/5204",
+      "memo": ""
+    },
+    {
+      "id": "class-mqsqo1t1",
+      "name": "英語表現1",
+      "day": 4,
+      "period": 3,
+      "room": "",
+      "urlTemplate": "",
+      "memo": ""
+    },
+    {
+      "id": "class-mqsqosrq",
+      "name": "科学技術史",
+      "semester": "前期",
+      "day": 4,
+      "period": 5,
+      "room": "8205",
+      "urlTemplate": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/8205",
+      "memo": ""
+    },
+    {
+      "id": "class-mqsqp19f",
+      "name": "科学技術史",
+      "day": 4,
+      "period": 6,
+      "room": "",
+      "urlTemplate": "",
+      "memo": ""
+    },
+    {
+      "id": "class-mqsqqc1r",
+      "name": "初年次教育 材料",
+      "semester": "前期",
+      "day": 5,
+      "period": 6,
+      "room": "1231",
+      "urlTemplate": "",
+      "memo": ""
+    },
+    {
+      "id": "class-mqsqqg9s",
+      "name": "初年次教育 材料",
+      "day": 5,
+      "period": 7,
+      "room": "",
+      "urlTemplate": "",
+      "memo": ""
+    },
+    {
+      "id": "class-mqsqrcyk",
+      "name": "化学基礎",
+      "semester": "前期",
+      "day": 2,
+      "period": 2,
+      "room": "7204",
+      "urlTemplate": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/7204",
+      "memo": ""
+    },
+    {
+      "id": "class-mqsqrm1u",
+      "name": "化学基礎",
+      "day": 2,
+      "period": 3,
+      "room": "",
+      "urlTemplate": "",
+      "memo": ""
+    },
+    {
+      "id": "class-mqsqrq7c",
+      "name": "化学基礎",
+      "day": 2,
+      "period": 4,
+      "room": "",
+      "urlTemplate": "",
+      "memo": ""
+    },
+    {
+      "id": "class-mqsqt83z",
+      "name": "英語理解1",
+      "semester": "前期",
+      "day": 2,
+      "period": 6,
+      "room": "5105",
+      "urlTemplate": "",
+      "memo": ""
+    },
+    {
+      "id": "class-mqsqtfmx",
+      "name": "英語理解1",
+      "day": 2,
+      "period": 7,
+      "room": "",
+      "urlTemplate": "",
+      "memo": ""
+    },
+    {
+      "id": "class-mqsqu5x5",
+      "name": "先端材料工学概論",
+      "semester": "前期",
+      "day": 2,
+      "period": 9,
+      "room": "1102",
+      "urlTemplate": "",
+      "memo": ""
+    },
+    {
+      "id": "class-mqsqub8z",
+      "name": "先端材料工学概論",
+      "day": 2,
+      "period": 10,
+      "room": "",
+      "urlTemplate": "",
+      "memo": ""
+    },
+    {
+      "id": "class-mqt0fp0t",
+      "name": "英語基礎学力養成講座",
+      "day": 5,
+      "period": 9,
+      "room": "7204",
+      "urlTemplate": "",
+      "memo": ""
+    },
+    {
+      "id": "class-mqt0fyuj",
+      "name": "英語基礎学力養成講座",
+      "day": 5,
+      "period": 10,
+      "room": "",
+      "urlTemplate": "",
+      "memo": ""
+    },
+    {
+      "id": "class-mqx6rodm",
+      "name": "数学基礎",
+      "semester": "前期",
+      "day": 1,
+      "period": 4,
+      "room": "8109",
+      "urlTemplate": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/8109",
+      "memo": ""
+    },
+    {
+      "id": "class-mqx6rw7y",
+      "name": "数学基礎",
+      "semester": "前期",
+      "day": 1,
+      "period": 5,
+      "room": "",
+      "urlTemplate": "",
+      "memo": ""
+    },
+    {
+      "id": "class-mqx6s2kc",
+      "name": "数学基礎",
+      "semester": "前期",
+      "day": 1,
+      "period": 6,
+      "room": "",
+      "urlTemplate": "",
+      "memo": ""
   "classes": [],
   "settings": {
     "periods": [
@@ -35,198 +291,75 @@
     ],
     "notifications": {
       "attendReminders": true
+}
+  ],
+  },
+  "lastUpdated": 1782782593006,
+"history": [
+{
+"id": "hist-mqzy4mqc",
+@@ -419,63 +200,5 @@
+"url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/1102",
+"timestamp": "2026-06-23T07:51:08.355Z"
+}
+  ],
+  "settings": {
+    "periods": [
+      {
+        "number": 1,
+        "start": "09:00",
+        "end": "10:00"
+      },
+      {
+        "number": 2,
+        "start": "10:00",
+        "end": "11:00"
+      },
+      {
+        "number": 3,
+        "start": "11:00",
+        "end": "12:00"
+      },
+      {
+        "number": 4,
+        "start": "12:00",
+        "end": "13:00"
+      },
+      {
+        "number": 5,
+        "start": "13:00",
+        "end": "14:00"
+      },
+      {
+        "number": 6,
+        "start": "14:00",
+        "end": "15:00"
+      },
+      {
+        "number": 7,
+        "start": "15:00",
+        "end": "16:00"
+      },
+      {
+        "number": 8,
+        "start": "16:00",
+        "end": "17:00"
+      },
+      {
+        "number": 9,
+        "start": "17:00",
+        "end": "18:00"
+      },
+      {
+        "number": 10,
+        "start": "18:00",
+        "end": "19:00"
+      }
+    ],
+    "notifications": {
+      "attendReminders": true
     }
   },
-  "lastUpdated": 1782795565243,
-  "history": [
-    {
-      "id": "hist-mqzy4mqc",
-      "classId": "class-mqsqrcyk",
-      "className": "化学基礎",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/7204",
-      "timestamp": "2026-06-30T01:06:30.036Z"
-    },
-    {
-      "id": "hist-mqzxfhqe",
-      "classId": "class-mqsqrcyk",
-      "className": "化学基礎",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/7204",
-      "timestamp": "2026-06-30T00:46:57.158Z"
-    },
-    {
-      "id": "hist-mqzxfczh",
-      "classId": "class-mqsqrcyk",
-      "className": "化学基礎",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/7204",
-      "timestamp": "2026-06-30T00:46:51.005Z"
-    },
-    {
-      "id": "hist-mqywilp0",
-      "classId": "class-mqx6rodm",
-      "className": "数学基礎",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/8109",
-      "timestamp": "2026-06-29T07:33:36.468Z"
-    },
-    {
-      "id": "hist-mqywijog",
-      "classId": "class-mqrbd5uu",
-      "className": "言語と文化1 ドイツ語",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/5303",
-      "timestamp": "2026-06-29T07:33:33.855Z"
-    },
-    {
-      "id": "hist-mqymv8tc",
-      "classId": "class-mqx6rodm",
-      "className": "数学基礎",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/8109",
-      "timestamp": "2026-06-29T03:03:30.144Z"
-    },
-    {
-      "id": "hist-mqymnmzz",
-      "classId": "class-mqrbd5uu",
-      "className": "言語と文化1 ドイツ語",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/5303",
-      "timestamp": "2026-06-29T02:57:35.279Z"
-    },
-    {
-      "id": "hist-mqymmz1g",
-      "classId": "class-mqx6rodm",
-      "className": "数学基礎",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/8109",
-      "timestamp": "2026-06-29T02:57:04.228Z"
-    },
-    {
-      "id": "hist-mqygj0hl",
-      "classId": "class-mqrbd5uu",
-      "className": "言語と文化1 ドイツ語",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/5303",
-      "timestamp": "2026-06-29T00:06:01.785Z"
-    },
-    {
-      "id": "hist-mqt1qibm",
-      "classId": "class-mqsqosrq",
-      "className": "科学技術史",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/8205",
-      "timestamp": "2026-06-25T05:13:06.370Z"
-    },
-    {
-      "id": "hist-mqt0sz77",
-      "classId": "class-mqsqosrq",
-      "className": "科学技術史",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/8205",
-      "timestamp": "2026-06-25T04:47:01.939Z"
-    },
-    {
-      "id": "hist-mqt0sv8u",
-      "classId": "class-mqsqnv3t",
-      "className": "英語表現1",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/5204",
-      "timestamp": "2026-06-25T04:46:56.814Z"
-    },
-    {
-      "id": "hist-mqsypxdw",
-      "classId": "class-mqsqosrq",
-      "className": "科学技術史",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/8205",
-      "timestamp": "2026-06-25T03:48:40.388Z"
-    },
-    {
-      "id": "hist-mqssda3q",
-      "classId": "unknown",
-      "className": "一般スキャン",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/5204",
-      "timestamp": "2026-06-25T00:50:52.646Z"
-    },
-    {
-      "id": "hist-mqrm5m95",
-      "classId": "class-mqrlrgw5",
-      "className": "物理学基礎",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/5208",
-      "timestamp": "2026-06-24T05:09:11.273Z"
-    },
-    {
-      "id": "hist-mqrls04s",
-      "classId": "unknown",
-      "className": "一般スキャン",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/5208",
-      "timestamp": "2026-06-24T04:58:36.076Z"
-    },
-    {
-      "id": "hist-mqrflk05",
-      "classId": "class-mqrfa7iu",
-      "className": "日本語表現法",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance /class_room/5303",
-      "timestamp": "2026-06-24T02:05:37.541Z"
-    },
-    {
-      "id": "hist-mqrfkai5",
-      "classId": "class-mqrfa7iu",
-      "className": "日本語表現法",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance/top",
-      "timestamp": "2026-06-24T02:04:38.573Z"
-    },
-    {
-      "id": "hist-mqrfk473",
-      "classId": "class-mqrfa7iu",
-      "className": "日本語表現法",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance/top",
-      "timestamp": "2026-06-24T02:04:30.399Z"
-    },
-    {
-      "id": "hist-mqrfanpf",
-      "classId": "class-mqrbl3bg",
-      "className": "線形代数",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/8108",
-      "timestamp": "2026-06-24T01:57:09.123Z"
-    },
-    {
-      "id": "hist-mqrbejs8",
-      "classId": "class-mqrbdup5",
-      "className": "線形代数",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/1102",
-      "timestamp": "2026-06-24T00:08:12.200Z"
-    },
-    {
-      "id": "hist-mqraxlq4",
-      "classId": "unknown",
-      "className": "一般スキャン",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/8108",
-      "timestamp": "2026-06-23T23:55:01.564Z"
-    },
-    {
-      "id": "hist-mqqci1c3",
-      "classId": "unknown",
-      "className": "一般スキャン",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/1102",
-      "timestamp": "2026-06-23T07:51:08.355Z"
-    },
-    {
-      "id": "hist-mr05ztl6",
-      "classId": "class-mqsqt83z",
-      "className": "英語理解1",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/5105",
-      "timestamp": "2026-06-30T04:46:42.570Z"
-    },
-    {
-      "id": "hist-mr0607hw",
-      "classId": "class-mqsqt83z",
-      "className": "英語理解1",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/5105",
-      "timestamp": "2026-06-30T04:47:00.596Z"
-    },
-    {
-      "id": "hist-mr06g36e",
-      "classId": "class-mqsqt83z",
-      "className": "英語理解1",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/5105",
-      "timestamp": "2026-06-30T04:59:21.494Z"
-    },
-    {
-      "id": "hist-mr06g5rn",
-      "classId": "class-mqsqrcyk",
-      "className": "化学基礎",
-      "url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/7204",
-      "timestamp": "2026-06-30T04:59:24.851Z"
-    }
+  "lastUpdated": 1782782560220
   ]
 }
