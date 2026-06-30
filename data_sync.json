@@ -37,7 +37,7 @@
       "attendReminders": true
     }
   },
-  "lastUpdated": 1782794802785,
+  "lastUpdated": 1782794820920,
   "history": [
     {
       "id": "hist-mqzy4mqc",
@@ -206,6 +206,13 @@
       "className": "英語理解1",
       "url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/5105",
       "timestamp": "2026-06-30T04:46:42.570Z"
+    },
+    {
+      "id": "hist-mr0607hw",
+      "classId": "class-mqsqt83z",
+      "className": "英語理解1",
+      "url": "https://attendance.is.it-chiba.ac.jp/attendance/class_room/5105",
+      "timestamp": "2026-06-30T04:47:00.596Z"
     }
   ]
 }
