@@ -142,6 +142,16 @@
                     <div id="notification-content" class="notification-content hidden" style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; animation: slideUp 0.3s ease;">
                         <div class="notification-item" style="margin-bottom: 16px; border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 12px;">
                             <div class="notif-meta" style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">
+                                <span class="notif-version" style="font-weight: 600; color: var(--accent-primary);">v1.4.4</span>
+                                <span class="notif-date">2026/06/30</span>
+                            </div>
+                            <h5 class="notif-title" style="font-size: 0.85rem; font-weight: 600; margin-bottom: 8px;">緊急バグ修正（同期時データ消失）</h5>
+                            <ul class="notif-list" style="margin-left: 16px; font-size: 0.75rem; color: var(--text-secondary); line-height: 1.6; display: flex; flex-direction: column; gap: 4px;">
+                                <li>🐛 <strong>データ消失問題の解決</strong>: 同期時にお互いのデータを「上書き」するのではなく、IDベースで「結合（合算）」する安全設計に変更しました。これにより、どちらかのデータが完全に消えるバグを解消しました。</li>
+                            </ul>
+                        </div>
+                        <div class="notification-item" style="margin-bottom: 16px; border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 12px;">
+                            <div class="notif-meta" style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">
                                 <span class="notif-version" style="font-weight: 600; color: var(--accent-primary);">v1.4.3</span>
                                 <span class="notif-date">2026/06/30</span>
                             </div>
@@ -253,60 +263,6 @@
                 </div>
 
                 <div class="settings-section">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <h4 style="margin-bottom: 0;">PC・スマホ連携 (GitHub自動同期)</h4>
-                        <span id="sync-status-badge" class="sync-badge badge-gray">未連携</span>
-                    </div>
-                    <p class="text-muted" style="font-size: 0.75rem; margin-bottom: 12px; line-height: 1.5;">
-                        GitHubリポジトリをデータ保存先として利用し、PCとスマホの間でデータを自動で双方向同期します。
-                    </p>
-                    
-                    <div id="sync-setup-panel" style="background: rgba(0,0,0,0.15); padding: 14px; border-radius: 12px; margin-bottom: 16px;">
-                        <div class="form-group" style="margin-bottom: 12px;">
-                            <label style="font-size: 0.8rem; margin-bottom: 6px; display: block; color: var(--text-secondary); font-weight: 500;">GitHub ユーザー名</label>
-                            <input type="text" id="sync-github-username" placeholder="例: s26a3019ud-pixel" style="font-size: 0.85rem; padding: 8px 12px;">
-                        </div>
-                        <div class="form-group" style="margin-bottom: 12px;">
-                            <label style="font-size: 0.8rem; margin-bottom: 6px; display: block; color: var(--text-secondary); font-weight: 500;">GitHub リポジトリ名</label>
-                            <input type="text" id="sync-github-repo" placeholder="例: QR-Pass" style="font-size: 0.85rem; padding: 8px 12px;">
-                        </div>
-                        <div class="form-group" style="margin-bottom: 12px;">
-                            <label style="font-size: 0.8rem; margin-bottom: 6px; display: block; color: var(--text-secondary); font-weight: 500;">パーソナルアクセストークン (PAT)</label>
-                            <input type="password" id="sync-github-token" placeholder="ghp_xxxxxxxxxxxx" style="font-size: 0.85rem; padding: 8px 12px; font-family: monospace;">
-                        </div>
-                        <button id="btn-save-sync-settings" class="btn btn-secondary btn-sm" style="width: 100%; margin-top: 4px;">
-                            <i class="fa-solid fa-link"></i> 設定を保存して連携テスト
-                        </button>
-                    </div>
-
-                    <div id="sync-actions-panel" class="hidden" style="display: flex; gap: 8px; margin-bottom: 16px;">
-                        <button id="btn-sync-now" class="btn btn-secondary" style="flex: 1; padding: 8px 12px; font-size: 0.8rem;">
-                            <i class="fa-solid fa-rotate"></i> 今すぐ同期
-                        </button>
-                        <button id="btn-disconnect-sync" class="btn btn-danger" style="padding: 8px 12px; font-size: 0.8rem; width: auto;">
-                            <i class="fa-solid fa-link-slash"></i> 解除
-                        </button>
-                    </div>
-
-                    <div class="notification-header" id="btn-toggle-sync-guide" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: rgba(255,255,255,0.02); padding: 8px 12px; border-radius: 8px;">
-                        <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 500;">
-                            <i class="fa-solid fa-circle-question" style="margin-right: 4px;"></i> GitHubトークンの発行手順
-                        </span>
-                        <i class="fa-solid fa-chevron-down text-muted toggle-arrow" id="sync-guide-toggle-arrow" style="font-size: 0.75rem; transition: var(--transition-smooth);"></i>
-                    </div>
-                    <div id="sync-guide-content" class="hidden" style="margin-top: 10px; padding: 8px 4px; border-top: 1px dashed rgba(255,255,255,0.05); font-size: 0.7rem; color: var(--text-secondary); line-height: 1.6;">
-                        <ol style="margin-left: 16px; display: flex; flex-direction: column; gap: 6px;">
-                            <li>PCのブラウザで GitHub にログインします。</li>
-                            <li>右上の自分のアイコン ＞ <strong>Settings</strong> ＞ 左メニュー最下部 <strong>Developer Settings</strong> ＞ <strong>Personal Access Tokens</strong> ＞ <strong>Tokens (classic)</strong> を開きます。</li>
-                            <li><strong>Generate new token (classic)</strong> をクリックし、Noteに「QR-Pass Sync」などと入力します。</li>
-                            <li>Expiration (有効期限) を「No expiration」(期限なし) または必要期間に設定します。</li>
-                            <li>Select scopes で <strong>repo</strong>（または <strong>public_repo</strong>）にチェックを入れます（これでデータの保存が可能になります）。</li>
-                            <li>最下部の <strong>Generate token</strong> を押し、表示された <code>ghp_</code> から始まるトークンをコピーして上記の入力欄に貼り付けます。<br><span style="color: var(--danger);">※この画面を閉じるとトークンは二度と表示されません。</span></li>
-                        </ol>
-                    </div>
-                </div>
-
-                <div class="settings-section">
                     <h4>manabaからの直接インポート</h4>
                     <p class="text-muted" style="font-size: 0.75rem; margin-bottom: 12px; line-height: 1.5;">
                         スマホのSafariでmanabaから時間割を一発で直接インポートするためのボタンです。下記の手順でお使いのSafariに登録してください。
@@ -329,7 +285,7 @@
 
                 <div class="settings-section app-info">
                     <h4>アプリについて</h4>
-                    <p>QR-Pass v1.4.3</p>
+                    <p>QR-Pass v1.4.4</p>
                     <p class="text-muted">大学の授業出席QRを一元管理するための完全オフライン動作アプリです。データはブラウザのLocalStorageにのみ保存されます。</p>
                 </div>
             </section>
