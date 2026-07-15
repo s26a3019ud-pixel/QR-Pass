@@ -91,6 +91,9 @@ function initApp() {
     setupNotifications();
     scheduleDailyNotifications();
 
+    // Setup semester/year filter
+    setupSemesterFilter();
+
     // Setup home timeline day tabs
     setupTimelineTabs();
 
