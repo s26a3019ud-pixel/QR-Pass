@@ -47,7 +47,7 @@
         <main class="app-main">
             <!-- 1. HOME SCREEN -->
             <section id="screen-home" class="app-screen active">
-                <!-- Dropdown / Period Semester Label -->
+                <!-- Timeline Header Actions -->
                 <div class="home-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                     <div class="semester-tag-selector" style="background: rgba(255,255,255,0.06); padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; color: var(--text-muted); font-weight: 500; display: flex; align-items: center; gap: 4px;">
                         <span>前期授業</span>
@@ -82,15 +82,7 @@
                     </button>
                 </div>
 
-                <!-- Attendance Reminder Alert -->
-                <div id="attendance-warning-alert" class="alert-warning-card hidden" style="margin-bottom: 20px;">
-                    <div class="alert-content">
-                        <i class="fa-solid fa-circle-exclamation alert-icon"></i>
-                        <div class="alert-text">
-                            <span id="attendance-warning-text">未出席の授業があります</span>
-                        </div>
-                    </div>
-                </div>
+
 
                 <!-- タイムライン授業リスト -->
                 <div id="timeline-classes-list" class="timeline-list-container">
@@ -102,33 +94,7 @@
                 </div>
             </section>
 
-            <!-- 2. TIMETABLE SCREEN -->
-            <section id="screen-timetable" class="app-screen">
-                <div class="section-header-row">
-                    <h3>週課表</h3>
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <button id="btn-import-manaba-trigger" class="btn btn-secondary btn-sm" style="width: auto; padding: 6px 12px; font-size: 0.8rem; font-weight: 500;">
-                            <i class="fa-solid fa-file-import"></i> manabaからインポート
-                        </button>
-                        <button id="btn-add-class-timetable" class="btn-icon" style="width: 32px; height: 32px; border-radius: 8px;">
-                            <i class="fa-solid fa-plus"></i>
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="timetable-tabs">
-                    <button class="tab-day active" data-day="1">月</button>
-                    <button class="tab-day" data-day="2">火</button>
-                    <button class="tab-day" data-day="3">水</button>
-                    <button class="tab-day" data-day="4">木</button>
-                    <button class="tab-day" data-day="5">金</button>
-                    <button class="tab-day" data-day="6">土</button>
-                </div>
 
-                <div id="timetable-day-content" class="timetable-list">
-                    <!-- Dynamic rendering for selected day -->
-                </div>
-            </section>
 
             <!-- 3. HISTORY SCREEN -->
             <section id="screen-history" class="app-screen">
@@ -311,9 +277,14 @@
                         <label style="font-size: 0.8rem; margin-bottom: 6px; display: block; color: var(--text-secondary); font-weight: 500;">登録用コード</label>
                         <textarea id="bookmarklet-code" rows="3" readonly style="font-family: monospace; font-size: 0.7rem; background: rgba(255,255,255,0.03); color: var(--accent-primary); resize: none;" onclick="this.select();">javascript:(function(){const t=document.querySelector('table.my-course-timetable,table.home-timetable,table.timetable');if(!t){alert('manabaの時間割テーブルが見つかりません。ホーム画面で実行してください。');return}const e=[];t.querySelectorAll('tr').forEach((t,o)=>{if(0===o)return;const r=t.querySelectorAll('td'),n=o;r.forEach((t,o)=>{if(r.length>6&&0===o)return;const c=r.length>6?o-1:o;if(c<0||c>=6)return;const a=c+1,i=t.querySelector('a');if(i){let o=i.innerText.trim();o=o.replace(/\[未読.*\]/g,'').trim(),o=o.replace(/\s*[\(（][^）\)]*[\)）]\s*/g,'').trim();let r='';const c=t.innerText.replace(i.innerText,'').trim().split('\n').map(t=>t.trim()).filter(t=>t.length>0);c.length>0&&(r=c[0]),e.push({name:o,day:a,period:n,room:r})}})});if(0===e.length){alert('時間割データを検出できませんでした。');return}const o=btoa(unescape(encodeURIComponent(JSON.stringify(e)))),r='https://s26a3019ud-pixel.github.io/QR-Pass/?import_json='+o;window.open(r,'_self')})();</textarea>
                     </div>
-                    <button id="btn-copy-bookmarklet" class="btn btn-secondary btn-sm" style="width: auto; padding: 6px 12px; font-size: 0.75rem; font-weight: 500;">
-                        <i class="fa-solid fa-copy"></i> コードをコピー
-                    </button>
+                    <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px;">
+                        <button id="btn-copy-bookmarklet" class="btn btn-secondary btn-sm" style="width: auto; padding: 6px 12px; font-size: 0.75rem; font-weight: 500;">
+                            <i class="fa-solid fa-copy"></i> コードをコピー
+                        </button>
+                        <button id="btn-import-manaba-trigger" class="btn btn-secondary btn-sm" style="width: auto; padding: 6px 12px; font-size: 0.75rem; font-weight: 500;">
+                            <i class="fa-solid fa-file-import"></i> manabaからインポート
+                        </button>
+                    </div>
                 </div>
 
                 <div class="settings-section app-info">
@@ -330,10 +301,7 @@
                 <i class="fa-solid fa-house-chimney"></i>
                 <span>ホーム</span>
             </button>
-            <button class="nav-item" data-screen="timetable">
-                <i class="fa-solid fa-calendar-days"></i>
-                <span>時間割</span>
-            </button>
+
             <button class="nav-item" data-screen="history">
                 <i class="fa-solid fa-clock-rotate-left"></i>
                 <span>履歴</span>

@@ -17,7 +17,9 @@ const DAY_NAMES = ["日曜日", "月曜日", "火曜日", "水曜日", "木曜�
 let state = {
     classes: [],
     history: [],
-    periods: JSON.parse(JSON.stringify(DEFAULT_PERIODS))
+    periods: JSON.parse(JSON.stringify(DEFAULT_PERIODS)),
+    selectedTimelineDay: 1,
+    scanningForUrlInput: false
 };
 
 // ==========================================
@@ -88,8 +90,8 @@ function initApp() {
     // Setup home timeline day tabs
     setupTimelineTabs();
 
-    // Render timeline classes
-    renderTodayClasses();
+    // Render timeline classes (no animation on initial load)
+    renderTodayClasses(false);
 
     // Handle manaba URL Parameter Import
     handleURLImport();
@@ -174,9 +176,6 @@ function updateDashboard() {
 
     // Refresh the new timeline view to update ongoing highlight indicator
     renderTodayClasses();
-
-    // Directly check for attendance reminders inside dashboard loop
-    checkAttendanceReminders();
 }
 
 // Check what class is current based on settings and system clock
@@ -230,14 +229,14 @@ function setupTimelineTabs() {
             
             const dayNum = Number(tab.getAttribute('data-day'));
             state.selectedTimelineDay = dayNum;
-            renderTodayClasses();
+            renderTodayClasses(true); // Smooth scroll on manual click
         });
     });
 
-    updateTimelineDayCounts();
+    updateTimelineDayCounts(false); // Initial positioning without animation
 }
 
-function updateTimelineDayCounts() {
+function updateTimelineDayCounts(smoothScroll = true) {
     for (let day = 1; day <= 6; day++) {
         const countBadge = document.getElementById(`count-day-${day}`);
         if (countBadge) {
@@ -253,6 +252,15 @@ function updateTimelineDayCounts() {
             tab.classList.remove('active');
             if (Number(tab.getAttribute('data-day')) === state.selectedTimelineDay) {
                 tab.classList.add('active');
+                
+                // Auto scroll tab into view center (delayed slightly to ensure DOM is ready)
+                setTimeout(() => {
+                    tab.scrollIntoView({
+                        behavior: smoothScroll ? 'smooth' : 'auto',
+                        block: 'nearest',
+                        inline: 'center'
+                    });
+                }, 50);
             }
         });
     }
@@ -274,12 +282,12 @@ function isPeriodOngoing(startPeriodNum, endPeriodNum, dayNum) {
     return currentStr >= startTime && currentStr <= endTime;
 }
 
-function renderTodayClasses() {
+function renderTodayClasses(smoothScroll = true) {
     const container = document.getElementById('timeline-classes-list');
     if (!container) return;
 
     // Keep tabs active and counts synchronized
-    updateTimelineDayCounts();
+    updateTimelineDayCounts(smoothScroll);
 
     const selectedDay = state.selectedTimelineDay || 1;
     const dayClasses = state.classes.filter(c => Number(c.day) === selectedDay);
@@ -337,8 +345,20 @@ function renderTodayClasses() {
                     </div>
                 `;
 
+                // Add long-press to edit
+                let isLongPressActive = false;
+                addLongPressListener(card, () => {
+                    isLongPressActive = true;
+                    openEditClassModal(mainCls.id);
+                });
+
                 // Add card click listener
                 card.addEventListener('click', () => {
+                    if (isLongPressActive) {
+                        isLongPressActive = false;
+                        return;
+                    }
+
                     const historyForClass = state.history.filter(h => h.classId === mainCls.id);
                     const targetUrl = mainCls.urlTemplate || (historyForClass.length > 0 ? historyForClass[0].url : null);
                     
@@ -373,8 +393,8 @@ function renderTodayClasses() {
                 </div>
             `;
 
-            // Click empty period to quick-add class
-            emptyCard.addEventListener('click', () => {
+            // Long press empty period to quick-add class
+            addLongPressListener(emptyCard, () => {
                 openAddClassModal(selectedDay, p.number);
             });
 
@@ -397,134 +417,51 @@ function renderTodayClasses() {
 // ==========================================
 let currentTimetableTabDay = 1; // Default to Monday
 
-function setupTimetableScreen() {
-    const tabs = document.querySelectorAll('.tab-day');
-    
-    // Set active tab based on current day if it is Mon-Sat
-    const today = new Date().getDay();
-    if (today >= 1 && today <= 6) {
-        currentTimetableTabDay = today;
-        tabs.forEach(tab => {
-            tab.classList.remove('active');
-            if (Number(tab.getAttribute('data-day')) === today) {
-                tab.classList.add('active');
+// Long press (hold) event helper for mobile & desktop
+function addLongPressListener(element, callback) {
+    let pressTimer = null;
+    let isMoving = false;
+
+    const startPress = (e) => {
+        if (e.button !== undefined && e.button !== 0) return; // Ignore right-click
+        isMoving = false;
+        
+        if (pressTimer) clearTimeout(pressTimer);
+        
+        pressTimer = setTimeout(() => {
+            if (!isMoving) {
+                callback(e);
             }
-        });
-    }
+        }, 600); // 600ms hold
+    };
 
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            tabs.forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            currentTimetableTabDay = Number(tab.getAttribute('data-day'));
-            renderTimetableForCurrentTab();
-        });
-    });
+    const cancelPress = () => {
+        if (pressTimer) {
+            clearTimeout(pressTimer);
+            pressTimer = null;
+        }
+    };
 
-    document.getElementById('btn-add-class-timetable').addEventListener('click', () => {
-        openAddClassModal(currentTimetableTabDay);
-    });
+    const movePress = () => {
+        isMoving = true;
+        cancelPress();
+    };
+
+    element.addEventListener('mousedown', startPress);
+    element.addEventListener('touchstart', startPress, { passive: true });
+
+    element.addEventListener('mouseup', cancelPress);
+    element.addEventListener('mouseleave', cancelPress);
+    element.addEventListener('touchend', cancelPress);
+    element.addEventListener('touchmove', movePress, { passive: true });
+}
+
+function setupTimetableScreen() {
+    // Buttons removed from timeline header. Adding classes is handled by tapping empty slots.
 }
 
 function renderTimetableForCurrentTab() {
-    const container = document.getElementById('timetable-day-content');
-    container.innerHTML = '';
-
-    const dayClasses = state.classes.filter(c => Number(c.day) === currentTimetableTabDay);
-    dayClasses.sort((a, b) => Number(a.period) - Number(b.period));
-    const groupedDayClasses = groupContinuousClasses(dayClasses);
-
-    // Track which periods are already rendered as part of grouped classes
-    const renderedPeriods = new Set();
-
-    // Sort periods config to ensure we loop from 1限 upwards
-    const sortedPeriods = [...state.periods].sort((a, b) => a.number - b.number);
-
-    if (sortedPeriods.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <i class="fa-solid fa-folder-open"></i>
-                <p>時限設定が登録されていません</p>
-            </div>
-        `;
-        return;
-    }
-
-    sortedPeriods.forEach(period => {
-        const periodNum = period.number;
-        
-        // Skip if this period was already rendered (e.g. as 2nd period of a 1-2 group)
-        if (renderedPeriods.has(periodNum)) return;
-
-        // Check if there is a class at this period
-        const cls = groupedDayClasses.find(c => c.periods.includes(periodNum));
-
-        if (cls) {
-            // Render class card (Has Class - Double Size)
-            const isGrouped = cls.periods.length > 1;
-            const periodBadgeText = isGrouped ? `${cls.startPeriod}-${cls.endPeriod}` : `${cls.startPeriod}`;
-            const timeStr = getPeriodTimeRangeStr(cls.startPeriod, cls.endPeriod);
-            const semesterBadgeHtml = getSemesterBadgeHtml(cls.classes[0].semester);
-
-            const card = document.createElement('div');
-            card.className = 'class-card has-class'; // Size doubling
-            card.innerHTML = `
-                <div class="class-card-left">
-                    <div class="period-badge">
-                        <span>${periodBadgeText}</span>
-                        <small>限</small>
-                    </div>
-                    <div class="class-info">
-                        <h4>${cls.name}${semesterBadgeHtml}</h4>
-                        <p>
-                            <span><i class="fa-solid fa-clock"></i> ${timeStr}</span>
-                            <span><i class="fa-solid fa-location-dot"></i> ${cls.room || '未定'}</span>
-                        </p>
-                    </div>
-                </div>
-                <div class="class-card-right">
-                    <i class="fa-solid fa-chevron-right text-muted"></i>
-                </div>
-            `;
-
-            card.addEventListener('click', () => {
-                openEditClassModal(cls.id);
-            });
-
-            container.appendChild(card);
-
-            // Mark all periods in this class group as rendered
-            cls.periods.forEach(p => renderedPeriods.add(p));
-        } else {
-            // Render empty class card (No Class - Compact Size)
-            const card = document.createElement('div');
-            card.className = 'class-card empty-class';
-            card.innerHTML = `
-                <div class="class-card-left">
-                    <div class="period-badge">
-                        <span>${periodNum}</span>
-                        <small>限</small>
-                    </div>
-                    <div class="class-info">
-                        <h4>授業なし (空きコマ)</h4>
-                        <p>
-                            <span><i class="fa-solid fa-clock"></i> ${period.start}~${period.end}</span>
-                        </p>
-                    </div>
-                </div>
-                <div class="class-card-right">
-                    <i class="fa-solid fa-plus text-muted" style="font-size: 0.8rem;"></i>
-                </div>
-            `;
-
-            // Tap empty period to add a new class directly preset to this day & period
-            card.addEventListener('click', () => {
-                openAddClassModal(currentTimetableTabDay, periodNum);
-            });
-
-            container.appendChild(card);
-        }
-    });
+    // Dummy function to prevent undefined references in other handlers
 }
 
 // ==========================================
@@ -537,6 +474,14 @@ function setupClassModal() {
     document.getElementById('btn-close-modal').addEventListener('click', closeModal);
     document.getElementById('btn-cancel-modal').addEventListener('click', closeModal);
     
+    const btnScanClassUrl = document.getElementById('btn-scan-class-url');
+    if (btnScanClassUrl) {
+        btnScanClassUrl.addEventListener('click', () => {
+            state.scanningForUrlInput = true;
+            startScanning(null);
+        });
+    }
+
     document.getElementById('btn-delete-class').addEventListener('click', () => {
         const classId = document.getElementById('form-class-id').value;
         if (confirm('この授業を削除しますか？\n（出席履歴は削除されません）')) {
@@ -895,6 +840,15 @@ function handleScannedURL(url) {
         navigator.vibrate(200);
     }
 
+    if (state.scanningForUrlInput) {
+        const urlInput = document.getElementById('form-class-url');
+        if (urlInput) {
+            urlInput.value = url;
+        }
+        stopScanningApp();
+        return;
+    }
+
     scannerStatus.classList.add('hidden');
     resultPreview.classList.remove('hidden');
     detectedUrlText.textContent = url;
@@ -902,6 +856,7 @@ function handleScannedURL(url) {
 
 function stopScanningApp() {
     isScanningActive = false;
+    state.scanningForUrlInput = false; // Reset scan context flag
     if (stream) {
         stream.getTracks().forEach(track => track.stop());
         stream = null;
@@ -1656,53 +1611,7 @@ function scheduleDailyNotifications() {
 }
 
 function checkAttendanceReminders() {
-    const alertBox = document.getElementById('attendance-warning-alert');
-    const alertText = document.getElementById('attendance-warning-text');
-    
-    if (!alertBox || !alertText) return;
-
-    const now = new Date();
-    const todayNum = now.getDay();
-    if (todayNum === 0) {
-        alertBox.classList.add('hidden');
-        return;
-    }
-
-    const todayDateStr = now.toISOString().slice(0, 10);
-    const getMinutes = (t) => {
-        const [h, m] = t.split(':').map(Number);
-        return h * 60 + m;
-    };
-    const nowMins = now.getHours() * 60 + now.getMinutes();
-
-    const todayClasses = state.classes.filter(c => Number(c.day) === todayNum);
-    const missedClasses = [];
-
-    todayClasses.forEach(cls => {
-        const period = state.periods.find(p => p.number === Number(cls.period));
-        if (!period) return;
-
-        const startMins = getMinutes(period.start);
-        
-        // Alert if time is 15 mins before starting (or anytime after)
-        if (nowMins >= (startMins - 15)) {
-            const attended = state.history.some(h => {
-                const hDate = new Date(h.timestamp).toISOString().slice(0, 10);
-                return h.classId === cls.id && hDate === todayDateStr;
-            });
-
-            if (!attended) {
-                missedClasses.push(cls.name);
-            }
-        }
-    });
-
-    if (missedClasses.length > 0) {
-        alertBox.classList.remove('hidden');
-        alertText.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <strong>出席忘れ警告:</strong> ${missedClasses.join(', ')} の出席登録がまだの可能性があります。`;
-    } else {
-        alertBox.classList.add('hidden');
-    }
+    // Attendance warning alert card removed from index.html
 }
 
 
