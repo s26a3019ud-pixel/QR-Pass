@@ -1,23 +1,23 @@
 :root {
-    --bg-color: #0b0f19;
-    --card-bg: rgba(30, 41, 59, 0.6);
-    --card-border: rgba(255, 255, 255, 0.06);
-    --card-bg-hover: rgba(30, 41, 59, 0.8);
+    --bg-color: #0d0e12;
+    --card-bg: rgba(22, 23, 28, 0.7);
+    --card-border: rgba(255, 255, 255, 0.05);
+    --card-bg-hover: rgba(22, 23, 28, 0.9);
     
     --text-primary: #f8fafc;
     --text-secondary: #94a3b8;
-    --text-muted: #64748b;
+    --text-muted: #5e6b7c;
     
-    --accent-primary: #38bdf8; /* Sky Blue */
-    --accent-secondary: #818cf8; /* Indigo */
-    --accent-gradient: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
-    --accent-glow: rgba(56, 189, 248, 0.35);
+    --accent-primary: #8fa62b; /* Olive Green */
+    --accent-secondary: #a3bd31;
+    --accent-gradient: linear-gradient(135deg, #8fa62b 0%, #a3bd31 100%);
+    --accent-glow: rgba(143, 166, 43, 0.35);
     
-    --success: #10b981;
-    --success-glow: rgba(16, 185, 129, 0.25);
+    --success: #8fa62b;
+    --success-glow: rgba(143, 166, 43, 0.25);
     --danger: #f43f5e;
     --danger-glow: rgba(244, 63, 94, 0.25);
-    --warning: #eab308;
+    --warning: #ffa502;
     
     --nav-bg: rgba(15, 23, 42, 0.85);
     
@@ -1250,5 +1250,243 @@ body {
     font-size: 0.85rem;
     font-weight: 500;
     color: var(--text-muted);
+}
+
+/* ==========================================
+   TIMELINE REDESIGN (v1.5.0)
+   ========================================== */
+
+/* 曜日選択タブ (横スクロール) */
+.timeline-day-tabs {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 4px 2px 12px 2px;
+    margin-bottom: 16px;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+.timeline-day-tabs::-webkit-scrollbar {
+    display: none; /* スクロールバー非表示 */
+}
+.timeline-tab-card {
+    flex: 0 0 65px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #16171c;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    padding: 10px 0;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+}
+.timeline-tab-card .tab-day-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+.timeline-tab-card .tab-class-count {
+    font-size: 0.65rem;
+    opacity: 0.6;
+}
+.timeline-tab-card.active {
+    background: var(--accent-primary);
+    color: #ffffff;
+    border-color: var(--accent-primary);
+    box-shadow: 0 4px 12px rgba(143, 166, 43, 0.25);
+}
+.timeline-tab-card.active .tab-class-count {
+    opacity: 0.9;
+}
+
+/* タイムライン授業リスト */
+.timeline-list-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 24px;
+}
+
+/* タイムライン時間割カード */
+.timeline-card {
+    background: #16171c;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    border-radius: 16px;
+    display: flex;
+    min-height: 96px;
+    position: relative;
+    overflow: hidden;
+    transition: var(--transition-smooth);
+}
+.timeline-card:hover {
+    background: #1d1e24;
+    border-color: rgba(255, 255, 255, 0.06);
+}
+
+/* 進行中のカードスタイル */
+.timeline-card.ongoing {
+    border-color: var(--accent-primary);
+    box-shadow: inset 0 0 12px rgba(143, 166, 43, 0.08), 0 4px 16px rgba(143, 166, 43, 0.05);
+    background: linear-gradient(135deg, rgba(22, 23, 28, 0.8) 0%, rgba(143, 166, 43, 0.03) 100%);
+}
+
+/* 左端：時限とタイムライングラフィック */
+.timeline-left {
+    width: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 16px 8px 12px 12px;
+    position: relative;
+}
+/* 時限バッジ */
+.timeline-period-badge {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    text-align: center;
+    white-space: nowrap;
+}
+.timeline-card.ongoing .timeline-period-badge {
+    background: rgba(143, 166, 43, 0.15);
+    color: var(--accent-primary);
+}
+/* 時間帯 */
+.timeline-time-str {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+/* タイムラインの縦線と丸ドット */
+.timeline-line-container {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: rgba(255, 255, 255, 0.04);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.timeline-line-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+}
+.timeline-card.ongoing .timeline-line-dot {
+    background: var(--accent-primary);
+    box-shadow: 0 0 8px var(--accent-primary);
+}
+.timeline-card.ongoing .timeline-line-container {
+    background: rgba(143, 166, 43, 0.3);
+}
+
+/* 右側：授業情報 */
+.timeline-right {
+    flex: 1;
+    padding: 16px 16px 14px 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* 授業名カプセルバッジ */
+.timeline-class-title-tag {
+    background: #0d0e12;
+    border: 1px solid rgba(255, 255, 255, 0.02);
+    border-radius: 10px;
+    padding: 6px 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 8px;
+    width: fit-content;
+    max-width: 100%;
+}
+.timeline-class-title-tag i {
+    color: #38bdf8; /* Book Icon color */
+}
+
+/* 担当・教室などのメタ行 */
+.timeline-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+.timeline-meta-row:last-child {
+    margin-bottom: 0;
+}
+.timeline-meta-row i {
+    width: 14px;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+/* 空きコマ（授業なし） */
+.timeline-card.empty-timeline {
+    min-height: 64px;
+    opacity: 0.5;
+    background: rgba(255, 255, 255, 0.01);
+    border: 1px dashed rgba(255, 255, 255, 0.04);
+}
+.timeline-card.empty-timeline:hover {
+    opacity: 0.8;
+    background: rgba(255, 255, 255, 0.02);
+}
+.timeline-card.empty-timeline .timeline-left {
+    padding: 12px 8px 10px 12px;
+}
+.timeline-card.empty-timeline .timeline-right {
+    padding: 12px 16px;
+}
+.timeline-empty-message {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.timeline-empty-message i {
+    font-size: 0.9rem;
+}
+
+/* 進行中ステータスバッジ */
+.timeline-ongoing-badge {
+    background: var(--accent-primary);
+    color: #ffffff;
+    font-size: 0.55rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-top: 4px;
+    text-transform: uppercase;
+    animation: pulseGlow 2s infinite;
+}
+@keyframes pulseGlow {
+    0% {
+        box-shadow: 0 0 0 0 rgba(143, 166, 43, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 6px rgba(143, 166, 43, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(143, 166, 43, 0);
+    }
 }
 

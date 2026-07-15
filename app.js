@@ -55,6 +55,10 @@ function saveData(key) {
 
 // Initialize application components and event listeners
 function initApp() {
+    // Set initial selected timeline day (today, fallback Sunday[0] to Monday[1])
+    let today = new Date().getDay();
+    state.selectedTimelineDay = today === 0 ? 1 : today;
+
     // Start real-time clock and active class tracking
     startClock();
     updateDashboard();
@@ -81,7 +85,10 @@ function initApp() {
     setupNotifications();
     scheduleDailyNotifications();
 
-    // Render today's classes
+    // Setup home timeline day tabs
+    setupTimelineTabs();
+
+    // Render timeline classes
     renderTodayClasses();
 
     // Handle manaba URL Parameter Import
@@ -101,11 +108,13 @@ function startClock() {
         const minutes = String(now.getMinutes()).padStart(2, '0');
         timeDisplay.textContent = `${hours}:${minutes}`;
         
-        // Update date label on home screen
-        const month = now.getMonth() + 1;
-        const date = now.getDate();
-        const dayName = DAY_NAMES[now.getDay()];
-        todayDateString.textContent = `${month}月${date}日 (${dayName.charAt(0)})`;
+        // Update date label on home screen if exists
+        if (todayDateString) {
+            const month = now.getMonth() + 1;
+            const date = now.getDate();
+            const dayName = DAY_NAMES[now.getDay()];
+            todayDateString.textContent = `${month}月${date}日 (${dayName.charAt(0)})`;
+        }
     }
     
     updateClock();
@@ -156,51 +165,16 @@ let currentActiveTargetClass = null; // Stores currently running class if any
 
 function updateDashboard() {
     const info = getCurrentPeriodClass();
-    const badge = document.getElementById('current-period-badge');
-    const nameEl = document.getElementById('current-class-name');
-    const timeEl = document.getElementById('current-class-time');
-    const roomEl = document.getElementById('current-class-room');
-
+    
     if (info && info.classData) {
-        const cls = info.classData;
-        currentActiveTargetClass = cls;
-
-        // Group continuous classes for dashboard display
-        const now = new Date();
-        const currentDay = now.getDay();
-        const todayClasses = state.classes.filter(c => Number(c.day) === currentDay);
-        todayClasses.sort((a, b) => Number(a.period) - Number(b.period));
-        const groupedClasses = groupContinuousClasses(todayClasses);
-        const groupedCls = groupedClasses.find(g => g.ids.includes(cls.id));
-
-        if (groupedCls && groupedCls.periods.length > 1) {
-            badge.textContent = `${groupedCls.startPeriod}-${groupedCls.endPeriod}限 (開講中)`;
-            timeEl.textContent = getPeriodTimeRangeStr(groupedCls.startPeriod, groupedCls.endPeriod);
-        } else {
-            badge.textContent = `${cls.period}限 (開講中)`;
-            const periodTime = state.periods.find(p => p.number === Number(cls.period));
-            timeEl.textContent = periodTime ? `${periodTime.start} ~ ${periodTime.end}` : '--:--';
-        }
-        badge.className = "status-badge active-class";
-        nameEl.textContent = cls.name;
-        roomEl.textContent = cls.room || '教室情報なし';
+        currentActiveTargetClass = info.classData;
     } else {
         currentActiveTargetClass = null;
-        badge.className = "status-badge";
-        
-        if (info && info.periodNumber) {
-            badge.textContent = `${info.periodNumber}限`;
-            nameEl.textContent = "空きコマ / 授業なし";
-            const periodTime = state.periods.find(p => p.number === info.periodNumber);
-            timeEl.textContent = periodTime ? `${periodTime.start} ~ ${periodTime.end}` : '--:--';
-            roomEl.textContent = "--";
-        } else {
-            badge.textContent = "時間外";
-            nameEl.textContent = "本日の時程は終了しました";
-            timeEl.textContent = "--:--";
-            roomEl.textContent = "--";
-        }
     }
+
+    // Refresh the new timeline view to update ongoing highlight indicator
+    renderTodayClasses();
+
     // Directly check for attendance reminders inside dashboard loop
     checkAttendanceReminders();
 }
@@ -244,93 +218,178 @@ function getCurrentPeriodClass() {
     return null;
 }
 
-function renderTodayClasses() {
-    const container = document.getElementById('today-classes-list');
-    const now = new Date();
-    const currentDay = now.getDay();
+function setupTimelineTabs() {
+    const tabsContainer = document.getElementById('timeline-day-tabs');
+    if (!tabsContainer) return;
 
-    if (currentDay === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <i class="fa-solid fa-mug-hot"></i>
-                <p>日曜日は休講日です</p>
-            </div>
-        `;
-        return;
+    const tabs = tabsContainer.querySelectorAll('.timeline-tab-card');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            
+            const dayNum = Number(tab.getAttribute('data-day'));
+            state.selectedTimelineDay = dayNum;
+            renderTodayClasses();
+        });
+    });
+
+    updateTimelineDayCounts();
+}
+
+function updateTimelineDayCounts() {
+    for (let day = 1; day <= 6; day++) {
+        const countBadge = document.getElementById(`count-day-${day}`);
+        if (countBadge) {
+            const count = state.classes.filter(c => Number(c.day) === day).length;
+            countBadge.textContent = `${count}コマ`;
+        }
     }
 
-    const todayClasses = state.classes.filter(c => Number(c.day) === currentDay);
-    
-    if (todayClasses.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <i class="fa-solid fa-calendar-day"></i>
-                <p>今日の授業は登録されていません</p>
-            </div>
-        `;
-        return;
-    }
-
-    // Sort classes by period number
-    todayClasses.sort((a, b) => Number(a.period) - Number(b.period));
-    const groupedTodayClasses = groupContinuousClasses(todayClasses);
-
-    container.innerHTML = '';
-    groupedTodayClasses.forEach(cls => {
-        const isGrouped = cls.periods.length > 1;
-        const periodBadgeText = isGrouped ? `${cls.startPeriod}-${cls.endPeriod}` : `${cls.startPeriod}`;
-        const timeStr = getPeriodTimeRangeStr(cls.startPeriod, cls.endPeriod);
-        
-        const semesterBadgeHtml = getSemesterBadgeHtml(cls.classes[0].semester);
-        
-        const card = document.createElement('div');
-        card.className = 'class-card';
-        card.innerHTML = `
-            <div class="class-card-left">
-                <div class="period-badge">
-                    <span>${periodBadgeText}</span>
-                    <small>限</small>
-                </div>
-                <div class="class-info">
-                    <h4>${cls.name}${semesterBadgeHtml}</h4>
-                    <p>
-                        <span><i class="fa-solid fa-clock"></i> ${timeStr}</span>
-                        <span><i class="fa-solid fa-location-dot"></i> ${cls.room || '未定'}</span>
-                    </p>
-                </div>
-            </div>
-            <div class="class-card-right">
-                <button class="btn-icon btn-card-scan" data-id="${cls.id}" title="スキャン出席">
-                    <i class="fa-solid fa-camera"></i>
-                </button>
-            </div>
-        `;
-
-        // Card action (open URL directly or open modal if empty)
-        card.addEventListener('click', (e) => {
-            if (e.target.closest('.btn-card-scan')) return; // ignore scanner click
-            
-            const mainCls = cls.classes[0];
-            const historyForClass = state.history.filter(h => h.classId === mainCls.id);
-            const targetUrl = mainCls.urlTemplate || (historyForClass.length > 0 ? historyForClass[0].url : null);
-            
-            if (targetUrl) {
-                recordAttendance(mainCls.id, mainCls.name, targetUrl);
-                window.open(targetUrl, '_blank');
-            } else {
-                alert(`「${mainCls.name}」の出席用URLが登録されていません。編集画面を開きますので、URLを登録してください。`);
-                openEditClassModal(mainCls.id);
+    const tabsContainer = document.getElementById('timeline-day-tabs');
+    if (tabsContainer) {
+        const tabs = tabsContainer.querySelectorAll('.timeline-tab-card');
+        tabs.forEach(tab => {
+            tab.classList.remove('active');
+            if (Number(tab.getAttribute('data-day')) === state.selectedTimelineDay) {
+                tab.classList.add('active');
             }
         });
+    }
+}
 
-        // Small scan button logic
-        card.querySelector('.btn-card-scan').addEventListener('click', (e) => {
-            e.stopPropagation();
-            startScanning(cls.classes[0]);
-        });
+function isPeriodOngoing(startPeriodNum, endPeriodNum, dayNum) {
+    const now = new Date();
+    const currentDay = now.getDay();
+    if (currentDay !== dayNum) return false;
 
-        container.appendChild(card);
+    const startP = state.periods.find(p => p.number === Number(startPeriodNum));
+    const endP = state.periods.find(p => p.number === Number(endPeriodNum));
+    if (!startP) return false;
+
+    const currentStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+    const startTime = startP.start;
+    const endTime = endP ? endP.end : startP.end;
+
+    return currentStr >= startTime && currentStr <= endTime;
+}
+
+function renderTodayClasses() {
+    const container = document.getElementById('timeline-classes-list');
+    if (!container) return;
+
+    // Keep tabs active and counts synchronized
+    updateTimelineDayCounts();
+
+    const selectedDay = state.selectedTimelineDay || 1;
+    const dayClasses = state.classes.filter(c => Number(c.day) === selectedDay);
+    
+    // Sort classes by period number
+    dayClasses.sort((a, b) => Number(a.period) - Number(b.period));
+    const groupedDayClasses = groupContinuousClasses(dayClasses);
+
+    container.innerHTML = '';
+
+    // Walk through all configured periods and render classes/empty slots in order
+    const sortedPeriods = [...state.periods].sort((a, b) => a.number - b.number);
+    const renderedGroupIds = new Set();
+
+    sortedPeriods.forEach(p => {
+        // Find if this period number is covered by any grouped class
+        const targetGroup = groupedDayClasses.find(g => g.periods.includes(p.number));
+
+        if (targetGroup) {
+            // Render class card (only once per group to handle continuous classes)
+            if (!renderedGroupIds.has(targetGroup.id)) {
+                renderedGroupIds.add(targetGroup.id);
+
+                const isGrouped = targetGroup.periods.length > 1;
+                const periodText = isGrouped ? `${targetGroup.startPeriod}-${targetGroup.endPeriod}` : `${targetGroup.startPeriod}`;
+                const timeStr = getPeriodTimeRangeStr(targetGroup.startPeriod, targetGroup.endPeriod);
+                const mainCls = targetGroup.classes[0];
+                
+                const isOngoing = isPeriodOngoing(targetGroup.startPeriod, targetGroup.endPeriod, selectedDay);
+                const semesterBadgeHtml = getSemesterBadgeHtml(mainCls.semester);
+
+                const card = document.createElement('div');
+                card.className = `timeline-card ${isOngoing ? 'ongoing' : ''}`;
+                card.innerHTML = `
+                    <div class="timeline-left">
+                        <div class="timeline-period-badge">${periodText}限</div>
+                        <div class="timeline-time-str">${timeStr}</div>
+                        ${isOngoing ? '<div class="timeline-ongoing-badge">進行中</div>' : ''}
+                        <div class="timeline-line-container">
+                            <div class="timeline-line-dot"></div>
+                        </div>
+                    </div>
+                    <div class="timeline-right">
+                        <div class="timeline-class-title-tag">
+                            <i class="fa-solid fa-book"></i> ${targetGroup.name} ${semesterBadgeHtml}
+                        </div>
+                        <div class="timeline-meta-row">
+                            <i class="fa-solid fa-user"></i>
+                            <span>担当：${mainCls.teacher || '未登録'}</span>
+                        </div>
+                        <div class="timeline-meta-row">
+                            <i class="fa-solid fa-location-dot"></i>
+                            <span>教室：${mainCls.room || '未登録'}</span>
+                        </div>
+                    </div>
+                `;
+
+                // Add card click listener
+                card.addEventListener('click', () => {
+                    const historyForClass = state.history.filter(h => h.classId === mainCls.id);
+                    const targetUrl = mainCls.urlTemplate || (historyForClass.length > 0 ? historyForClass[0].url : null);
+                    
+                    if (targetUrl) {
+                        recordAttendance(mainCls.id, mainCls.name, targetUrl);
+                        window.open(targetUrl, '_blank');
+                    } else {
+                        alert(`「${mainCls.name}」の出席用URLが登録されていません。編集画面を開きますので、URLを登録してください。`);
+                        openEditClassModal(mainCls.id);
+                    }
+                });
+
+                container.appendChild(card);
+            }
+        } else {
+            // Render empty period slot (授業なし)
+            const emptyCard = document.createElement('div');
+            emptyCard.className = 'timeline-card empty-timeline';
+            emptyCard.innerHTML = `
+                <div class="timeline-left">
+                    <div class="timeline-period-badge">${p.number}限</div>
+                    <div class="timeline-time-str">${p.start}~${p.end}</div>
+                    <div class="timeline-line-container">
+                        <div class="timeline-line-dot"></div>
+                    </div>
+                </div>
+                <div class="timeline-right">
+                    <div class="timeline-empty-message">
+                        <i class="fa-solid fa-bed"></i>
+                        <span>💤 このコマは授業なし</span>
+                    </div>
+                </div>
+            `;
+
+            // Click empty period to quick-add class
+            emptyCard.addEventListener('click', () => {
+                openAddClassModal(selectedDay, p.number);
+            });
+
+            container.appendChild(emptyCard);
+        }
     });
+
+    if (state.periods.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fa-solid fa-circle-info"></i>
+                <p>設定画面から時間割の校時（時限データ）を追加してください</p>
+            </div>
+        `;
+    }
 }
 
 // ==========================================
@@ -499,6 +558,7 @@ function setupClassModal() {
         const semester = document.getElementById('form-class-semester').value;
         const day = Number(document.getElementById('form-class-day').value);
         const period = Number(document.getElementById('form-class-period').value);
+        const teacher = document.getElementById('form-class-teacher').value.trim();
         const room = document.getElementById('form-class-room').value.trim();
         const urlTemplate = document.getElementById('form-class-url').value.trim();
         const memo = document.getElementById('form-class-memo').value.trim();
@@ -519,13 +579,13 @@ function setupClassModal() {
             // Edit existing
             const index = state.classes.findIndex(c => c.id === id);
             if (index !== -1) {
-                state.classes[index] = { id, name, semester, day, period, room, urlTemplate, memo };
+                state.classes[index] = { id, name, semester, day, period, teacher, room, urlTemplate, memo };
             }
         } else {
             // Create new
             const newClass = {
                 id: 'class-' + Date.now().toString(36),
-                name, semester, day, period, room, urlTemplate, memo
+                name, semester, day, period, teacher, room, urlTemplate, memo
             };
             state.classes.push(newClass);
         }
@@ -558,6 +618,7 @@ function openAddClassModal(defaultDay = 1, defaultPeriod = null) {
     document.getElementById('modal-title').textContent = '授業の追加';
     document.getElementById('form-class-day').value = defaultDay;
     document.getElementById('form-class-semester').value = '前期';
+    document.getElementById('form-class-teacher').value = '';
     
     // Dynamically update period choices
     updateClassPeriodSelect(defaultPeriod);
@@ -578,6 +639,7 @@ function openEditClassModal(classId) {
     // Dynamically update period choices
     updateClassPeriodSelect(cls.period);
     
+    document.getElementById('form-class-teacher').value = cls.teacher || '';
     document.getElementById('form-class-room').value = cls.room || '';
     document.getElementById('form-class-url').value = cls.urlTemplate || '';
     document.getElementById('form-class-memo').value = cls.memo || '';
@@ -1772,9 +1834,45 @@ function getPeriodTimeRangeStr(startPeriod, endPeriod) {
     return '';
 }
 
+// Base64 UTF-8 decode helper
+function decodeBase64Utf8(str) {
+    return decodeURIComponent(escape(atob(str)));
+}
+
 function handleURLImport() {
     const urlParams = new URLSearchParams(window.location.search);
     const importText = urlParams.get('import_text');
+    const importJson = urlParams.get('import_json');
+
+    if (importJson) {
+        try {
+            const jsonText = decodeBase64Utf8(importJson.replace(/\s/g, ''));
+            const importedClasses = JSON.parse(jsonText);
+            
+            if (Array.isArray(importedClasses) && importedClasses.length > 0) {
+                const importModal = document.getElementById('import-modal');
+                const stepPaste = document.getElementById('import-step-paste');
+                const stepPreview = document.getElementById('import-step-preview');
+                
+                if (importModal && stepPaste && stepPreview) {
+                    parsedClassesTemp = importedClasses;
+                    renderImportPreview();
+                    stepPaste.classList.add('hidden');
+                    stepPreview.classList.remove('hidden');
+                    importModal.classList.add('active');
+
+                    // Clear URL params
+                    const newUrl = window.location.pathname;
+                    window.history.replaceState({}, document.title, newUrl);
+                    return;
+                }
+            }
+        } catch (err) {
+            console.error('Failed to parse import_json:', err);
+            alert('時間割データの読み込みに失敗しました。データが破損している可能性があります。');
+        }
+    }
+
     if (importText) {
         const importModal = document.getElementById('import-modal');
         const textarea = document.getElementById('import-textarea');

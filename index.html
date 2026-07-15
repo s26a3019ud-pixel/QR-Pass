@@ -47,13 +47,39 @@
         <main class="app-main">
             <!-- 1. HOME SCREEN -->
             <section id="screen-home" class="app-screen active">
-                <div class="dashboard-card">
-                    <div class="card-glass-glow"></div>
-                    <div class="current-status-info">
-                        <span class="status-badge" id="current-period-badge">判定中...</span>
-                        <h2 id="current-class-name">授業情報を読み込み中</h2>
-                        <p id="current-class-details"><span id="current-class-time">--:-- ~ --:--</span> | <span id="current-class-room">--</span></p>
+                <!-- Dropdown / Period Semester Label -->
+                <div class="home-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <div class="semester-tag-selector" style="background: rgba(255,255,255,0.06); padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; color: var(--text-muted); font-weight: 500; display: flex; align-items: center; gap: 4px;">
+                        <span>前期授業</span>
                     </div>
+                </div>
+
+                <!-- 曜日選択タブ (横スクロール) -->
+                <div class="timeline-day-tabs" id="timeline-day-tabs">
+                    <button class="timeline-tab-card active" data-day="1">
+                        <span class="tab-day-label">月</span>
+                        <span class="tab-class-count" id="count-day-1">0コマ</span>
+                    </button>
+                    <button class="timeline-tab-card" data-day="2">
+                        <span class="tab-day-label">火</span>
+                        <span class="tab-class-count" id="count-day-2">0コマ</span>
+                    </button>
+                    <button class="timeline-tab-card" data-day="3">
+                        <span class="tab-day-label">水</span>
+                        <span class="tab-class-count" id="count-day-3">0コマ</span>
+                    </button>
+                    <button class="timeline-tab-card" data-day="4">
+                        <span class="tab-day-label">木</span>
+                        <span class="tab-class-count" id="count-day-4">0コマ</span>
+                    </button>
+                    <button class="timeline-tab-card" data-day="5">
+                        <span class="tab-day-label">金</span>
+                        <span class="tab-class-count" id="count-day-5">0コマ</span>
+                    </button>
+                    <button class="timeline-tab-card" data-day="6">
+                        <span class="tab-day-label">土</span>
+                        <span class="tab-class-count" id="count-day-6">0コマ</span>
+                    </button>
                 </div>
 
                 <!-- Attendance Reminder Alert -->
@@ -66,16 +92,12 @@
                     </div>
                 </div>
 
-                <div class="section-title">
-                    <h3>今日の時間割</h3>
-                    <span id="today-date-string">月曜日</span>
-                </div>
-                
-                <div id="today-classes-list" class="classes-list-container">
+                <!-- タイムライン授業リスト -->
+                <div id="timeline-classes-list" class="timeline-list-container">
                     <!-- Dynamic rendering -->
                     <div class="empty-state">
                         <i class="fa-solid fa-calendar-day"></i>
-                        <p>今日の授業はありません</p>
+                        <p>授業情報がありません</p>
                     </div>
                 </div>
             </section>
@@ -140,6 +162,17 @@
                     </div>
                     
                     <div id="notification-content" class="notification-content hidden" style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; animation: slideUp 0.3s ease;">
+                        <div class="notification-item" style="margin-bottom: 16px; border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 12px;">
+                            <div class="notif-meta" style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">
+                                <span class="notif-version" style="font-weight: 600; color: var(--accent-primary);">v1.4.5</span>
+                                <span class="notif-date">2026/07/03</span>
+                            </div>
+                            <h5 class="notif-title" style="font-size: 0.85rem; font-weight: 600; margin-bottom: 8px;">新機能（manaba高精度JSONインポート）</h5>
+                            <ul class="notif-list" style="margin-left: 16px; font-size: 0.75rem; color: var(--text-secondary); line-height: 1.6; display: flex; flex-direction: column; gap: 4px;">
+                                <li>✨ <strong>時間割インポートの超高精度化</strong>: コピーしたテキストから解析していた従来方式を廃止し、manabaの時間割表（テーブル構造）から曜日・時限・授業・教室名を直接HTML解析する「高精度JSONブックマークレット」を実装しました。曜日や時限がズレることなく、100%完璧な時間割が一撃で登録されます。</li>
+                                <li>🔒 <strong>同期機能の完全削除</strong>: 先日の不具合の再発防止のため、不評だった自動同期機能の全コードを削除し、従来の安全な「完全ローカル管理（LocalStorageのみで完結）」にロールバックしました。</li>
+                            </ul>
+                        </div>
                         <div class="notification-item" style="margin-bottom: 16px; border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 12px;">
                             <div class="notif-meta" style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">
                                 <span class="notif-version" style="font-weight: 600; color: var(--accent-primary);">v1.4.4</span>
@@ -276,7 +309,7 @@
                     </div>
                     <div class="form-group" style="margin-bottom: 12px;">
                         <label style="font-size: 0.8rem; margin-bottom: 6px; display: block; color: var(--text-secondary); font-weight: 500;">登録用コード</label>
-                        <textarea id="bookmarklet-code" rows="3" readonly style="font-family: monospace; font-size: 0.7rem; background: rgba(255,255,255,0.03); color: var(--accent-primary); resize: none;" onclick="this.select();">javascript:(function(){const text=document.body.innerText;const url='https://s26a3019ud-pixel.github.io/QR-Pass/?import_text='+encodeURIComponent(text);window.open(url,'_self');})();</textarea>
+                        <textarea id="bookmarklet-code" rows="3" readonly style="font-family: monospace; font-size: 0.7rem; background: rgba(255,255,255,0.03); color: var(--accent-primary); resize: none;" onclick="this.select();">javascript:(function(){const t=document.querySelector('table.my-course-timetable,table.home-timetable,table.timetable');if(!t){alert('manabaの時間割テーブルが見つかりません。ホーム画面で実行してください。');return}const e=[];t.querySelectorAll('tr').forEach((t,o)=>{if(0===o)return;const r=t.querySelectorAll('td'),n=o;r.forEach((t,o)=>{if(r.length>6&&0===o)return;const c=r.length>6?o-1:o;if(c<0||c>=6)return;const a=c+1,i=t.querySelector('a');if(i){let o=i.innerText.trim();o=o.replace(/\[未読.*\]/g,'').trim(),o=o.replace(/\s*[\(（][^）\)]*[\)）]\s*/g,'').trim();let r='';const c=t.innerText.replace(i.innerText,'').trim().split('\n').map(t=>t.trim()).filter(t=>t.length>0);c.length>0&&(r=c[0]),e.push({name:o,day:a,period:n,room:r})}})});if(0===e.length){alert('時間割データを検出できませんでした。');return}const o=btoa(unescape(encodeURIComponent(JSON.stringify(e)))),r='https://s26a3019ud-pixel.github.io/QR-Pass/?import_json='+o;window.open(r,'_self')})();</textarea>
                     </div>
                     <button id="btn-copy-bookmarklet" class="btn btn-secondary btn-sm" style="width: auto; padding: 6px 12px; font-size: 0.75rem; font-weight: 500;">
                         <i class="fa-solid fa-copy"></i> コードをコピー
@@ -285,7 +318,7 @@
 
                 <div class="settings-section app-info">
                     <h4>アプリについて</h4>
-                    <p>QR-Pass v1.4.4</p>
+                    <p>QR-Pass v1.4.5</p>
                     <p class="text-muted">大学の授業出席QRを一元管理するための完全オフライン動作アプリです。データはブラウザのLocalStorageにのみ保存されます。</p>
                 </div>
             </section>
@@ -410,6 +443,11 @@
                                 <option value="6">6限</option>
                             </select>
                         </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="form-class-teacher">担当教員</label>
+                        <input type="text" id="form-class-teacher" placeholder="例: 山田 太郎">
                     </div>
 
                     <div class="form-group">

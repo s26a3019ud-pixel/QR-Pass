@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qr-pass-v1.4.5';
+const CACHE_NAME = 'qr-pass-v1.5.0';
 const ASSETS = [
   './',
   './index.html',
