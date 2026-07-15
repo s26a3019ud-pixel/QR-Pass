@@ -425,7 +425,12 @@
 
                     <div class="form-group">
                         <label for="form-class-url">固定出席URL (ある場合のみ)</label>
-                        <input type="url" id="form-class-url" placeholder="https://...">
+                        <div style="display: flex; gap: 8px;">
+                            <input type="url" id="form-class-url" placeholder="https://..." style="flex: 1; margin-bottom: 0;">
+                            <button type="button" id="btn-scan-class-url" class="btn btn-secondary btn-icon" style="width: 42px; height: 42px; padding: 0; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.06); border: 1px solid var(--card-border); color: var(--text-primary); cursor: pointer;" title="QRコードから読込">
+                                <i class="fa-solid fa-camera"></i>
+                            </button>
+                        </div>
                         <small class="form-help">毎回URLが変わる授業の場合は空欄でOKです。スキャン時に自動で履歴に保存されます。</small>
                     </div>
 

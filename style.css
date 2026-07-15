@@ -1282,6 +1282,10 @@ body {
     color: var(--text-secondary);
     cursor: pointer;
     transition: var(--transition-smooth);
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 .timeline-tab-card .tab-day-label {
     font-size: 0.9rem;
@@ -1320,6 +1324,10 @@ body {
     position: relative;
     overflow: hidden;
     transition: var(--transition-smooth);
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 .timeline-card:hover {
     background: #1d1e24;
