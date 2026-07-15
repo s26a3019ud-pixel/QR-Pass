@@ -49,8 +49,9 @@
             <section id="screen-home" class="app-screen active">
                 <!-- Timeline Header Actions -->
                 <div class="home-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                    <div class="semester-tag-selector" style="background: rgba(255,255,255,0.06); padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; color: var(--text-muted); font-weight: 500; display: flex; align-items: center; gap: 4px;">
-                        <span>前期授業</span>
+                    <div id="btn-semester-filter-toggle" class="semester-tag-selector" style="background: rgba(255,255,255,0.06); padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; color: var(--text-primary); font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer; border: 1px solid rgba(255,255,255,0.04); transition: var(--transition-smooth);" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.06)'">
+                        <span id="txt-semester-filter">前期</span>
+                        <i class="fa-solid fa-chevron-down" style="font-size: 0.65rem; opacity: 0.7;"></i>
                     </div>
                 </div>
 
@@ -232,17 +233,22 @@
                     </div>
                 </div>
 
-                <div class="settings-section">
-                    <div class="section-header-row" style="margin-bottom: 16px;">
-                        <h4 style="margin-bottom: 0; border-bottom: none; padding-bottom: 0;">時限の時間設定</h4>
-                        <button id="btn-add-period" class="btn btn-secondary btn-sm" style="width: auto; padding: 4px 8px; font-size: 0.75rem;">
-                            <i class="fa-solid fa-plus"></i> 時限を追加
-                        </button>
+                <div class="settings-section accordion-section">
+                    <div class="accordion-header" id="btn-toggle-periods-settings" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 4px 0;">
+                        <h4 style="margin: 0; border-bottom: none; padding-bottom: 0;">時限の時間設定</h4>
+                        <i class="fa-solid fa-chevron-down toggle-arrow" id="icon-periods-accordion" style="transition: transform 0.3s ease; color: var(--text-muted);"></i>
                     </div>
-                    <div id="period-settings-list" class="period-settings-list">
-                        <!-- Dynamic list of periods -->
+                    <div class="accordion-content" id="periods-settings-content" style="margin-top: 16px; display: none;">
+                        <div class="section-header-row" style="margin-bottom: 16px;">
+                            <button id="btn-add-period" class="btn btn-secondary btn-sm" style="width: auto; padding: 4px 8px; font-size: 0.75rem;">
+                                <i class="fa-solid fa-plus"></i> 時限を追加
+                            </button>
+                        </div>
+                        <div id="period-settings-list" class="period-settings-list">
+                            <!-- Dynamic list of periods -->
+                        </div>
+                        <button id="btn-save-periods" class="btn btn-secondary btn-sm" style="margin-top: 8px;">時限設定を保存</button>
                     </div>
-                    <button id="btn-save-periods" class="btn btn-secondary btn-sm">時限設定を保存</button>
                 </div>
 
                 <div class="settings-section">
@@ -379,14 +385,25 @@
                         <input type="text" id="form-class-name" placeholder="例: 英語コミュニケーションI" required>
                     </div>
 
-                    <div class="form-row">
-                    <div class="form-group">
-                        <label for="form-class-semester">学期 <span class="required">*</span></label>
-                        <select id="form-class-semester" required>
-                            <option value="前期" selected>前期</option>
-                            <option value="後期">後期</option>
-                            <option value="通年">通年</option>
-                        </select>
+                    <div class="form-row" style="display: flex; gap: 12px; width: 100%;">
+                        <div class="form-group" style="flex: 1;">
+                            <label for="form-class-year">学年 <span class="required">*</span></label>
+                            <select id="form-class-year" required>
+                                <option value="all" selected>全学年</option>
+                                <option value="1">1年</option>
+                                <option value="2">2年</option>
+                                <option value="3">3年</option>
+                                <option value="4">4年</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label for="form-class-semester">学期 <span class="required">*</span></label>
+                            <select id="form-class-semester" required>
+                                <option value="前期" selected>前期</option>
+                                <option value="後期">後期</option>
+                                <option value="通年">通年</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="form-grid">
                         <div class="form-group">

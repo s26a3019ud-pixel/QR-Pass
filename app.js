@@ -19,7 +19,8 @@ let state = {
     history: [],
     periods: JSON.parse(JSON.stringify(DEFAULT_PERIODS)),
     selectedTimelineDay: 1,
-    scanningForUrlInput: false
+    scanningForUrlInput: false,
+    currentSemesterFilterIndex: 0
 };
 
 // ==========================================
@@ -42,10 +43,12 @@ function loadData() {
     const savedClasses = localStorage.getItem('qr_pass_classes');
     const savedHistory = localStorage.getItem('qr_pass_history');
     const savedPeriods = localStorage.getItem('qr_pass_periods');
+    const savedFilterIndex = localStorage.getItem('qr_pass_semester_filter_index');
 
     if (savedClasses) state.classes = JSON.parse(savedClasses);
     if (savedHistory) state.history = JSON.parse(savedHistory);
     if (savedPeriods) state.periods = JSON.parse(savedPeriods);
+    if (savedFilterIndex !== null) state.currentSemesterFilterIndex = Number(savedFilterIndex);
 }
 
 // Save data to LocalStorage
@@ -53,6 +56,7 @@ function saveData(key) {
     if (!key || key === 'classes') localStorage.setItem('qr_pass_classes', JSON.stringify(state.classes));
     if (!key || key === 'history') localStorage.setItem('qr_pass_history', JSON.stringify(state.history));
     if (!key || key === 'periods') localStorage.setItem('qr_pass_periods', JSON.stringify(state.periods));
+    if (!key || key === 'filter') localStorage.setItem('qr_pass_semester_filter_index', state.currentSemesterFilterIndex);
 }
 
 // Initialize application components and event listeners
@@ -217,6 +221,42 @@ function getCurrentPeriodClass() {
     return null;
 }
 
+const SEMESTER_FILTERS = [
+    { label: '前期 (全学年)', year: 'all', semester: '前期' },
+    { label: '後期 (全学年)', year: 'all', semester: '後期' },
+    { label: '1年 前期', year: '1', semester: '前期' },
+    { label: '1年 後期', year: '1', semester: '後期' },
+    { label: '2年 前期', year: '2', semester: '前期' },
+    { label: '2年 後期', year: '2', semester: '後期' },
+    { label: '3年 前期', year: '3', semester: '前期' },
+    { label: '3年 後期', year: '3', semester: '後期' },
+    { label: '4年 前期', year: '4', semester: '前期' },
+    { label: '4年 後期', year: '4', semester: '後期' }
+];
+
+function setupSemesterFilter() {
+    const btnFilter = document.getElementById('btn-semester-filter-toggle');
+    const txtFilter = document.getElementById('txt-semester-filter');
+    
+    if (txtFilter) {
+        const filter = SEMESTER_FILTERS[state.currentSemesterFilterIndex] || SEMESTER_FILTERS[0];
+        txtFilter.textContent = filter.label;
+    }
+
+    if (btnFilter && txtFilter) {
+        btnFilter.addEventListener('click', () => {
+            state.currentSemesterFilterIndex = (state.currentSemesterFilterIndex + 1) % SEMESTER_FILTERS.length;
+            saveData('filter');
+            
+            const filter = SEMESTER_FILTERS[state.currentSemesterFilterIndex];
+            txtFilter.textContent = filter.label;
+            
+            renderTodayClasses(false);
+            updateTimelineDayCounts(false);
+        });
+    }
+}
+
 function setupTimelineTabs() {
     const tabsContainer = document.getElementById('timeline-day-tabs');
     if (!tabsContainer) return;
@@ -237,10 +277,23 @@ function setupTimelineTabs() {
 }
 
 function updateTimelineDayCounts(smoothScroll = true) {
+    const filter = SEMESTER_FILTERS[state.currentSemesterFilterIndex] || SEMESTER_FILTERS[0];
+
     for (let day = 1; day <= 6; day++) {
         const countBadge = document.getElementById(`count-day-${day}`);
         if (countBadge) {
-            const count = state.classes.filter(c => Number(c.day) === day).length;
+            const count = state.classes.filter(c => {
+                const dayMatch = Number(c.day) === day;
+                if (!dayMatch) return false;
+                
+                const cYear = c.year || 'all';
+                const yearMatch = (filter.year === 'all') || (cYear === filter.year);
+                
+                const cSemester = c.semester || '前期';
+                const semesterMatch = (cSemester === filter.semester) || (cSemester === '通年');
+                
+                return yearMatch && semesterMatch;
+            }).length;
             countBadge.textContent = `${count}コマ`;
         }
     }
@@ -290,7 +343,19 @@ function renderTodayClasses(smoothScroll = true) {
     updateTimelineDayCounts(smoothScroll);
 
     const selectedDay = state.selectedTimelineDay || 1;
-    const dayClasses = state.classes.filter(c => Number(c.day) === selectedDay);
+    const filter = SEMESTER_FILTERS[state.currentSemesterFilterIndex] || SEMESTER_FILTERS[0];
+    const dayClasses = state.classes.filter(c => {
+        const dayMatch = Number(c.day) === selectedDay;
+        if (!dayMatch) return false;
+        
+        const cYear = c.year || 'all';
+        const yearMatch = (filter.year === 'all') || (cYear === filter.year);
+        
+        const cSemester = c.semester || '前期';
+        const semesterMatch = (cSemester === filter.semester) || (cSemester === '通年');
+        
+        return yearMatch && semesterMatch;
+    });
     
     // Sort classes by period number
     dayClasses.sort((a, b) => Number(a.period) - Number(b.period));
@@ -500,6 +565,7 @@ function setupClassModal() {
         
         const id = document.getElementById('form-class-id').value;
         const name = document.getElementById('form-class-name').value.trim();
+        const year = document.getElementById('form-class-year').value;
         const semester = document.getElementById('form-class-semester').value;
         const day = Number(document.getElementById('form-class-day').value);
         const period = Number(document.getElementById('form-class-period').value);
@@ -524,13 +590,13 @@ function setupClassModal() {
             // Edit existing
             const index = state.classes.findIndex(c => c.id === id);
             if (index !== -1) {
-                state.classes[index] = { id, name, semester, day, period, teacher, room, urlTemplate, memo };
+                state.classes[index] = { id, name, year, semester, day, period, teacher, room, urlTemplate, memo };
             }
         } else {
             // Create new
             const newClass = {
                 id: 'class-' + Date.now().toString(36),
-                name, semester, day, period, teacher, room, urlTemplate, memo
+                name, year, semester, day, period, teacher, room, urlTemplate, memo
             };
             state.classes.push(newClass);
         }
@@ -562,6 +628,7 @@ function openAddClassModal(defaultDay = 1, defaultPeriod = null) {
     document.getElementById('form-class-id').value = '';
     document.getElementById('modal-title').textContent = '授業の追加';
     document.getElementById('form-class-day').value = defaultDay;
+    document.getElementById('form-class-year').value = 'all';
     document.getElementById('form-class-semester').value = '前期';
     document.getElementById('form-class-teacher').value = '';
     
@@ -578,6 +645,7 @@ function openEditClassModal(classId) {
 
     document.getElementById('form-class-id').value = cls.id;
     document.getElementById('form-class-name').value = cls.name;
+    document.getElementById('form-class-year').value = cls.year || 'all';
     document.getElementById('form-class-semester').value = cls.semester || '前期';
     document.getElementById('form-class-day').value = cls.day;
     
@@ -960,6 +1028,23 @@ function renderHistory() {
 function setupSettingsScreen() {
     document.getElementById('btn-save-periods').addEventListener('click', savePeriodsConfig);
     document.getElementById('btn-clear-history').addEventListener('click', clearHistoryData);
+    
+    // Accordion periods toggle
+    const btnTogglePeriods = document.getElementById('btn-toggle-periods-settings');
+    const contentPeriods = document.getElementById('periods-settings-content');
+    const iconPeriods = document.getElementById('icon-periods-accordion');
+    if (btnTogglePeriods && contentPeriods) {
+        btnTogglePeriods.addEventListener('click', () => {
+            const isClosed = contentPeriods.style.display === 'none' || contentPeriods.style.display === '';
+            if (isClosed) {
+                contentPeriods.style.display = 'block';
+                if (iconPeriods) iconPeriods.style.transform = 'rotate(180deg)';
+            } else {
+                contentPeriods.style.display = 'none';
+                if (iconPeriods) iconPeriods.style.transform = 'rotate(0deg)';
+            }
+        });
+    }
     
     // Dynamic period adding
     const btnAddPeriod = document.getElementById('btn-add-period');
