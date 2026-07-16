@@ -453,6 +453,23 @@
             </div>
         </div>
 
+        <!-- Semester Filter Picker Bottom Sheet -->
+        <div id="semester-picker-sheet" class="modal-overlay" style="align-items: flex-end;">
+            <div class="modal-content" style="border-radius: 24px 24px 0 0; padding-bottom: calc(20px + env(safe-area-inset-bottom)); max-height: 80vh; display: flex; flex-direction: column;">
+                <div class="modal-header" style="padding: 16px 20px 10px 20px; border-bottom: none;">
+                    <h3 style="font-size: 1rem; font-weight: 600;">学年・学期の切り替え</h3>
+                    <button id="btn-close-semester-picker" class="btn-close">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="modal-body" style="padding: 0 20px; overflow-y: auto; flex: 1;">
+                    <div id="semester-picker-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+                        <!-- Dynamic list of filters -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
     
     <!-- App Logic -->

@@ -240,22 +240,56 @@ const SEMESTER_FILTERS = [
 function setupSemesterFilter() {
     const btnFilter = document.getElementById('btn-semester-filter-toggle');
     const txtFilter = document.getElementById('txt-semester-filter');
+    const pickerSheet = document.getElementById('semester-picker-sheet');
+    const pickerList = document.getElementById('semester-picker-list');
+    const btnClosePicker = document.getElementById('btn-close-semester-picker');
     
     if (txtFilter) {
         const filter = SEMESTER_FILTERS[state.currentSemesterFilterIndex] || SEMESTER_FILTERS[0];
         txtFilter.textContent = filter.label;
     }
 
-    if (btnFilter && txtFilter) {
+    if (btnFilter && txtFilter && pickerSheet && pickerList) {
         btnFilter.addEventListener('click', () => {
-            state.currentSemesterFilterIndex = (state.currentSemesterFilterIndex + 1) % SEMESTER_FILTERS.length;
-            saveData('filter');
+            pickerList.innerHTML = '';
             
-            const filter = SEMESTER_FILTERS[state.currentSemesterFilterIndex];
-            txtFilter.textContent = filter.label;
+            SEMESTER_FILTERS.forEach((filter, index) => {
+                const btn = document.createElement('button');
+                btn.className = `picker-item-btn ${index === state.currentSemesterFilterIndex ? 'active' : ''}`;
+                
+                const isSelected = index === state.currentSemesterFilterIndex;
+                btn.innerHTML = `
+                    <span>${filter.label}</span>
+                    ${isSelected ? '<i class="fa-solid fa-check" style="font-size: 0.85rem;"></i>' : ''}
+                `;
+                
+                btn.addEventListener('click', () => {
+                    state.currentSemesterFilterIndex = index;
+                    saveData('filter');
+                    
+                    txtFilter.textContent = filter.label;
+                    pickerSheet.classList.remove('active');
+                    
+                    renderTodayClasses(false);
+                    updateTimelineDayCounts(false);
+                });
+                
+                pickerList.appendChild(btn);
+            });
             
-            renderTodayClasses(false);
-            updateTimelineDayCounts(false);
+            pickerSheet.classList.add('active');
+        });
+    }
+
+    if (btnClosePicker && pickerSheet) {
+        btnClosePicker.addEventListener('click', () => {
+            pickerSheet.classList.remove('active');
+        });
+        
+        pickerSheet.addEventListener('click', (e) => {
+            if (e.target === pickerSheet) {
+                pickerSheet.classList.remove('active');
+            }
         });
     }
 }
