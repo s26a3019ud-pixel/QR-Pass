@@ -606,6 +606,25 @@ function setupClassModal() {
         });
     }
 
+    const formClassRoom = document.getElementById('form-class-room');
+    const formClassUrl = document.getElementById('form-class-url');
+    if (formClassRoom && formClassUrl) {
+        formClassRoom.addEventListener('input', () => {
+            const currentRoom = formClassRoom.value.trim();
+            if (!currentRoom) return;
+
+            const matchedClass = state.classes.find(c => 
+                c.room && c.room.trim().toLowerCase() === currentRoom.toLowerCase() && c.urlTemplate
+            );
+
+            if (matchedClass) {
+                if (!formClassUrl.value.trim()) {
+                    formClassUrl.value = matchedClass.urlTemplate;
+                }
+            }
+        });
+    }
+
     document.getElementById('btn-delete-class').addEventListener('click', () => {
         const classId = document.getElementById('form-class-id').value;
         if (confirm('この授業を削除しますか？\n（出席履歴は削除されません）')) {
