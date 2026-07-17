@@ -35,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     loadData();
+    migrateExistingClassesToFirstYear();
     initApp();
 });
 
@@ -57,6 +58,29 @@ function saveData(key) {
     if (!key || key === 'history') localStorage.setItem('qr_pass_history', JSON.stringify(state.history));
     if (!key || key === 'periods') localStorage.setItem('qr_pass_periods', JSON.stringify(state.periods));
     if (!key || key === 'filter') localStorage.setItem('qr_pass_semester_filter_index', state.currentSemesterFilterIndex);
+}
+
+// Migrate existing classes to 1st year Zenki (v1.6.2 migration)
+function migrateExistingClassesToFirstYear() {
+    const isMigrated = localStorage.getItem('qr_pass_migrated_to_1year_zenki') === 'true';
+    if (isMigrated) return;
+
+    let modified = false;
+    state.classes.forEach(c => {
+        c.year = '1';
+        c.semester = '前期';
+        modified = true;
+    });
+
+    if (modified) {
+        saveData('classes');
+    }
+
+    // Default semester filter to "1年 前期" (index 0)
+    state.currentSemesterFilterIndex = 0;
+    saveData('filter');
+
+    localStorage.setItem('qr_pass_migrated_to_1year_zenki', 'true');
 }
 
 // Initialize application components and event listeners
@@ -225,8 +249,6 @@ function getCurrentPeriodClass() {
 }
 
 const SEMESTER_FILTERS = [
-    { label: '前期 (全学年)', year: 'all', semester: '前期' },
-    { label: '後期 (全学年)', year: 'all', semester: '後期' },
     { label: '1年 前期', year: '1', semester: '前期' },
     { label: '1年 後期', year: '1', semester: '後期' },
     { label: '2年 前期', year: '2', semester: '前期' },
