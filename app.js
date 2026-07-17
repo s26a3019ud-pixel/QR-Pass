@@ -635,13 +635,24 @@ function setupClassModal() {
 
         if (!name) return;
 
-        // Check for duplicates (same day and period)
-        const isDuplicate = state.classes.some(c => 
-            c.id !== id && Number(c.day) === day && Number(c.period) === period
-        );
+        // Check for duplicates (same grade, overlapping semester, same day & period)
+        const isDuplicate = state.classes.some(c => {
+            if (c.id === id) return false;
+
+            const isSameYear = (c.year || '1') === year;
+            const isSameDay = Number(c.day) === day;
+            const isSamePeriod = Number(c.period) === period;
+
+            if (!isSameYear || !isSameDay || !isSamePeriod) return false;
+
+            const cSemester = c.semester || '前期';
+            const semesterOverlap = (semester === '通年') || (cSemester === '通年') || (semester === cSemester);
+
+            return semesterOverlap;
+        });
 
         if (isDuplicate) {
-            alert('同じ曜日・時限にすでに他の授業が登録されています。');
+            alert('選択中の学年・学期の同じ曜日・時限にすでに他の授業が登録されています。');
             return;
         }
 
@@ -668,31 +679,18 @@ function setupClassModal() {
     });
 }
 
-function updateClassPeriodSelect(selectedValue) {
-    const select = document.getElementById('form-class-period');
-    select.innerHTML = '';
-    state.periods.forEach(p => {
-        const opt = document.createElement('option');
-        opt.value = p.number;
-        opt.textContent = `${p.number}限`;
-        if (p.number === Number(selectedValue)) {
-            opt.selected = true;
-        }
-        select.appendChild(opt);
-    });
-}
-
 function openAddClassModal(defaultDay = 1, defaultPeriod = null) {
     classForm.reset();
     document.getElementById('form-class-id').value = '';
     document.getElementById('modal-title').textContent = '授業の追加';
-    document.getElementById('form-class-day').value = defaultDay;
-    document.getElementById('form-class-year').value = 'all';
-    document.getElementById('form-class-semester').value = '前期';
-    document.getElementById('form-class-teacher').value = '';
     
-    // Dynamically update period choices
-    updateClassPeriodSelect(defaultPeriod);
+    const filter = SEMESTER_FILTERS[state.currentSemesterFilterIndex] || SEMESTER_FILTERS[0];
+    
+    document.getElementById('form-class-day').value = defaultDay;
+    document.getElementById('form-class-period').value = defaultPeriod !== null ? defaultPeriod : 1;
+    document.getElementById('form-class-year').value = filter.year || '1';
+    document.getElementById('form-class-semester').value = filter.semester || '前期';
+    document.getElementById('form-class-teacher').value = '';
     
     document.getElementById('btn-delete-class').classList.add('hidden');
     classModal.classList.add('active');
@@ -704,12 +702,10 @@ function openEditClassModal(classId) {
 
     document.getElementById('form-class-id').value = cls.id;
     document.getElementById('form-class-name').value = cls.name;
-    document.getElementById('form-class-year').value = cls.year || 'all';
+    document.getElementById('form-class-year').value = cls.year || '1';
     document.getElementById('form-class-semester').value = cls.semester || '前期';
     document.getElementById('form-class-day').value = cls.day;
-    
-    // Dynamically update period choices
-    updateClassPeriodSelect(cls.period);
+    document.getElementById('form-class-period').value = cls.period;
     
     document.getElementById('form-class-teacher').value = cls.teacher || '';
     document.getElementById('form-class-room').value = cls.room || '';
