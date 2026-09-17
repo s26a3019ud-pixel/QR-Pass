@@ -20,7 +20,9 @@ let state = {
     periods: JSON.parse(JSON.stringify(DEFAULT_PERIODS)),
     selectedTimelineDay: 1,
     scanningForUrlInput: false,
-    currentSemesterFilterIndex: 0
+    currentSemesterFilterIndex: 0,
+    todos: [],
+    selectedTodoFilter: 'pending'
 };
 
 // ==========================================
@@ -45,11 +47,13 @@ function loadData() {
     const savedHistory = localStorage.getItem('qr_pass_history');
     const savedPeriods = localStorage.getItem('qr_pass_periods');
     const savedFilterIndex = localStorage.getItem('qr_pass_semester_filter_index');
+    const savedTodos = localStorage.getItem('qr_pass_todos');
 
     if (savedClasses) state.classes = JSON.parse(savedClasses);
     if (savedHistory) state.history = JSON.parse(savedHistory);
     if (savedPeriods) state.periods = JSON.parse(savedPeriods);
     if (savedFilterIndex !== null) state.currentSemesterFilterIndex = Number(savedFilterIndex);
+    if (savedTodos) state.todos = JSON.parse(savedTodos);
 }
 
 // Save data to LocalStorage
@@ -58,6 +62,7 @@ function saveData(key) {
     if (!key || key === 'history') localStorage.setItem('qr_pass_history', JSON.stringify(state.history));
     if (!key || key === 'periods') localStorage.setItem('qr_pass_periods', JSON.stringify(state.periods));
     if (!key || key === 'filter') localStorage.setItem('qr_pass_semester_filter_index', state.currentSemesterFilterIndex);
+    if (!key || key === 'todos') localStorage.setItem('qr_pass_todos', JSON.stringify(state.todos));
 }
 
 // Migrate existing classes to 1st year Zenki (v1.6.2 migration)
@@ -104,6 +109,9 @@ function initApp() {
 
     // Modals & Form setup
     setupClassModal();
+
+    // ToDo screen setup
+    setupTodoScreen();
 
     // QR Scanner setup
     setupQRScanner();
@@ -180,6 +188,8 @@ function setupNavigation() {
             if (screenId === 'home') {
                 updateDashboard();
                 renderTodayClasses();
+            } else if (screenId === 'todo') {
+                renderTodoList();
             } else if (screenId === 'timetable') {
                 renderTimetableForCurrentTab();
             } else if (screenId === 'history') {
@@ -1972,6 +1982,311 @@ function getSemesterBadgeHtml(semester) {
     if (semester === '後期') badgeClass = 'semester-koki';
     if (semester === '通年') badgeClass = 'semester-tsunen';
     return `<span class="semester-badge ${badgeClass}">${semester}</span>`;
+}
+
+// ==========================================
+// TODO LIST & REMINDER LOGIC
+// ==========================================
+const todoModal = document.getElementById('todo-modal');
+const todoForm = document.getElementById('todo-form');
+
+function setupTodoScreen() {
+    const btnAddTodo = document.getElementById('btn-add-todo');
+    const btnCloseTodoModal = document.getElementById('btn-close-todo-modal');
+    const btnCancelTodoModal = document.getElementById('btn-cancel-todo-modal');
+    const btnDeleteTodo = document.getElementById('btn-delete-todo');
+
+    if (btnAddTodo) {
+        btnAddTodo.addEventListener('click', () => openAddTodoModal());
+    }
+
+    if (btnCloseTodoModal) {
+        btnCloseTodoModal.addEventListener('click', closeTodoModal);
+    }
+
+    if (btnCancelTodoModal) {
+        btnCancelTodoModal.addEventListener('click', closeTodoModal);
+    }
+
+    if (btnDeleteTodo) {
+        btnDeleteTodo.addEventListener('click', () => {
+            const todoId = document.getElementById('form-todo-id').value;
+            if (todoId && confirm('このToDoを削除しますか？')) {
+                state.todos = state.todos.filter(t => t.id !== todoId);
+                saveData('todos');
+                closeTodoModal();
+                renderTodoList();
+            }
+        });
+    }
+
+    if (todoForm) {
+        todoForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const id = document.getElementById('form-todo-id').value;
+            const title = document.getElementById('form-todo-title').value.trim();
+            const classId = document.getElementById('form-todo-class').value;
+            const dueDate = document.getElementById('form-todo-date').value;
+            const dueTime = document.getElementById('form-todo-time').value || '23:59';
+            const memo = document.getElementById('form-todo-memo').value.trim();
+
+            if (!title || !dueDate) return;
+
+            if (id) {
+                // Edit existing
+                const index = state.todos.findIndex(t => t.id === id);
+                if (index !== -1) {
+                    state.todos[index] = {
+                        ...state.todos[index],
+                        title,
+                        classId,
+                        dueDate,
+                        dueTime,
+                        memo
+                    };
+                }
+            } else {
+                // Add new
+                const newTodo = {
+                    id: 'todo-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
+                    title,
+                    classId,
+                    dueDate,
+                    dueTime,
+                    memo,
+                    completed: false,
+                    createdAt: new Date().toISOString()
+                };
+                state.todos.push(newTodo);
+            }
+
+            saveData('todos');
+            closeTodoModal();
+            renderTodoList();
+        });
+    }
+
+    // Filter tabs
+    const filterContainer = document.getElementById('todo-filter-tabs');
+    if (filterContainer) {
+        const filterBtns = filterContainer.querySelectorAll('.tab-todo-filter');
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                filterBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                state.selectedTodoFilter = btn.getAttribute('data-filter') || 'pending';
+                renderTodoList();
+            });
+        });
+    }
+}
+
+function updateTodoClassSelect(selectedClassId = '') {
+    const select = document.getElementById('form-todo-class');
+    if (!select) return;
+    
+    select.innerHTML = '<option value="">指定なし</option>';
+    
+    const sortedClasses = [...state.classes].sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+    
+    sortedClasses.forEach(cls => {
+        const opt = document.createElement('option');
+        opt.value = cls.id;
+        opt.textContent = cls.name;
+        if (cls.id === selectedClassId) {
+            opt.selected = true;
+        }
+        select.appendChild(opt);
+    });
+}
+
+function openAddTodoModal() {
+    if (!todoForm) return;
+    todoForm.reset();
+    document.getElementById('form-todo-id').value = '';
+    document.getElementById('todo-modal-title').textContent = 'ToDoの追加';
+    
+    // Set default date to today
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    document.getElementById('form-todo-date').value = `${yyyy}-${mm}-${dd}`;
+    document.getElementById('form-todo-time').value = '23:59';
+    
+    updateTodoClassSelect('');
+    
+    const btnDelete = document.getElementById('btn-delete-todo');
+    if (btnDelete) btnDelete.classList.add('hidden');
+    
+    if (todoModal) todoModal.classList.add('active');
+}
+
+function openEditTodoModal(todoId) {
+    const item = state.todos.find(t => t.id === todoId);
+    if (!item || !todoForm) return;
+
+    document.getElementById('form-todo-id').value = item.id;
+    document.getElementById('form-todo-title').value = item.title;
+    document.getElementById('form-todo-date').value = item.dueDate;
+    document.getElementById('form-todo-time').value = item.dueTime || '23:59';
+    document.getElementById('form-todo-memo').value = item.memo || '';
+    
+    updateTodoClassSelect(item.classId || '');
+
+    document.getElementById('todo-modal-title').textContent = 'ToDoの編集';
+    
+    const btnDelete = document.getElementById('btn-delete-todo');
+    if (btnDelete) btnDelete.classList.remove('hidden');
+
+    if (todoModal) todoModal.classList.add('active');
+}
+
+function closeTodoModal() {
+    if (todoModal) todoModal.classList.remove('active');
+}
+
+function toggleTodoStatus(todoId) {
+    const item = state.todos.find(t => t.id === todoId);
+    if (item) {
+        item.completed = !item.completed;
+        saveData('todos');
+        renderTodoList();
+    }
+}
+
+function renderTodoList() {
+    const container = document.getElementById('todo-list-container');
+    if (!container) return;
+
+    const filter = state.selectedTodoFilter || 'pending';
+
+    // 1. Filter items
+    let filtered = state.todos.filter(item => {
+        if (filter === 'pending') return !item.completed;
+        if (filter === 'completed') return item.completed;
+        return true; // 'all'
+    });
+
+    // 2. Sort items by due datetime (ascending), and completed items at bottom if 'all' filter
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    filtered.sort((a, b) => {
+        if (a.completed !== b.completed) {
+            return a.completed ? 1 : -1;
+        }
+        const timeA = `${a.dueDate}T${a.dueTime || '23:59'}`;
+        const timeB = `${b.dueDate}T${b.dueTime || '23:59'}`;
+        return timeA.localeCompare(timeB);
+    });
+
+    container.innerHTML = '';
+
+    if (filtered.length === 0) {
+        let emptyMsg = 'ToDoはありません';
+        if (filter === 'pending') emptyMsg = '未完了のToDoはありません';
+        if (filter === 'completed') emptyMsg = '完了済みのToDoはありません';
+
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fa-solid fa-list-check"></i>
+                <p>${emptyMsg}</p>
+            </div>
+        `;
+        return;
+    }
+
+    filtered.forEach(item => {
+        const card = document.createElement('div');
+        card.className = `todo-card ${item.completed ? 'completed' : ''}`;
+
+        // Calculate due status
+        let dueBadgeHtml = '';
+        if (!item.completed) {
+            if (item.dueDate < todayStr) {
+                dueBadgeHtml = `<span class="todo-due-badge overdue"><i class="fa-solid fa-triangle-exclamation"></i> 期限切れ (${formatDueDateLabel(item.dueDate, item.dueTime)})</span>`;
+            } else if (item.dueDate === todayStr) {
+                dueBadgeHtml = `<span class="todo-due-badge today"><i class="fa-solid fa-clock"></i> 今日 ${item.dueTime || ''}</span>`;
+            } else {
+                dueBadgeHtml = `<span class="todo-due-badge upcoming"><i class="fa-regular fa-calendar"></i> ${formatDueDateLabel(item.dueDate, item.dueTime)}</span>`;
+            }
+        } else {
+            dueBadgeHtml = `<span class="todo-due-badge upcoming"><i class="fa-regular fa-calendar-check"></i> ${formatDueDateLabel(item.dueDate, item.dueTime)}</span>`;
+        }
+
+        // Associated class info
+        let classTagHtml = '';
+        if (item.classId) {
+            const cls = state.classes.find(c => c.id === item.classId);
+            if (cls) {
+                classTagHtml = `<span class="todo-class-tag"><i class="fa-solid fa-book"></i> ${cls.name}</span>`;
+            }
+        }
+
+        card.innerHTML = `
+            <div class="todo-checkbox-wrapper">
+                <div class="todo-checkbox" title="完了/未完了を切替">
+                    <i class="fa-solid fa-check"></i>
+                </div>
+            </div>
+            <div class="todo-content">
+                <div class="todo-header-line">
+                    ${classTagHtml}
+                    ${dueBadgeHtml}
+                </div>
+                <div class="todo-title">${escapeHtml(item.title)}</div>
+                ${item.memo ? `<div class="todo-memo">${escapeHtml(item.memo)}</div>` : ''}
+            </div>
+            <div class="todo-actions">
+                <button type="button" class="btn-todo-icon btn-edit-todo" title="編集">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+            </div>
+        `;
+
+        // Checkbox toggle event
+        const checkboxEl = card.querySelector('.todo-checkbox');
+        checkboxEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleTodoStatus(item.id);
+        });
+
+        // Edit button event
+        const editBtn = card.querySelector('.btn-edit-todo');
+        editBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openEditTodoModal(item.id);
+        });
+
+        // Card click event (open edit)
+        card.addEventListener('click', () => {
+            openEditTodoModal(item.id);
+        });
+
+        container.appendChild(card);
+    });
+}
+
+function formatDueDateLabel(dateStr, timeStr) {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+
+    const dt = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    const dayChar = DAY_NAMES[dt.getDay()].charAt(0);
+    const timeDisplay = timeStr ? ` ${timeStr}` : '';
+    return `${Number(parts[1])}/${Number(parts[2])}(${dayChar})${timeDisplay}`;
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
 

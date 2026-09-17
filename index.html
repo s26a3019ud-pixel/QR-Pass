@@ -210,6 +210,27 @@
                     </div>
                 </div>
             </section>
+
+            <!-- TODO SCREEN -->
+            <section id="screen-todo" class="app-screen">
+                <div class="section-header-row" style="margin-bottom: 12px;">
+                    <h3>ToDo・リマインダー</h3>
+                    <button id="btn-add-todo" class="btn btn-primary btn-sm" style="width: auto; padding: 6px 14px; font-size: 0.8rem; font-weight: 600;">
+                        <i class="fa-solid fa-plus"></i> ToDoを追加
+                    </button>
+                </div>
+
+                <!-- フィルタータブ (未完了 / すべて / 完了済み) -->
+                <div class="todo-filter-tabs" id="todo-filter-tabs">
+                    <button class="tab-todo-filter active" data-filter="pending">未完了</button>
+                    <button class="tab-todo-filter" data-filter="all">すべて</button>
+                    <button class="tab-todo-filter" data-filter="completed">完了済み</button>
+                </div>
+
+                <div id="todo-list-container" class="todo-list-container">
+                    <!-- Dynamic rendering -->
+                </div>
+            </section>
         </main>
 
         <!-- Bottom Navigation Bar -->
@@ -218,7 +239,10 @@
                 <i class="fa-solid fa-house-chimney"></i>
                 <span>ホーム</span>
             </button>
-
+            <button class="nav-item" data-screen="todo">
+                <i class="fa-solid fa-list-check"></i>
+                <span>ToDo</span>
+            </button>
             <button class="nav-item" data-screen="history">
                 <i class="fa-solid fa-clock-rotate-left"></i>
                 <span>履歴</span>
@@ -408,6 +432,58 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- ToDo Modal (Add/Edit) -->
+        <div id="todo-modal" class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="todo-modal-title">ToDoの追加</h3>
+                    <button id="btn-close-todo-modal" class="btn-close">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <form id="todo-form" class="modal-body">
+                    <input type="hidden" id="form-todo-id">
+
+                    <div class="form-group">
+                        <label for="form-todo-title">タイトル / 課題名 <span class="required">*</span></label>
+                        <input type="text" id="form-todo-title" placeholder="例: レポート提出, 小テスト復習" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="form-todo-class">関連する授業 (任意)</label>
+                        <select id="form-todo-class">
+                            <option value="">指定なし</option>
+                            <!-- Dynamic options -->
+                        </select>
+                    </div>
+
+                    <div class="form-row" style="display: flex; gap: 12px; width: 100%;">
+                        <div class="form-group" style="flex: 1;">
+                            <label for="form-todo-date">期限日 <span class="required">*</span></label>
+                            <input type="date" id="form-todo-date" required>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label for="form-todo-time">期限時刻</label>
+                            <input type="time" id="form-todo-time" value="23:59">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="form-todo-memo">メモ (任意)</label>
+                        <textarea id="form-todo-memo" rows="3" placeholder="提出場所や注意点など"></textarea>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" id="btn-delete-todo" class="btn btn-danger hidden">削除</button>
+                        <div class="footer-actions">
+                            <button type="button" id="btn-cancel-todo-modal" class="btn btn-secondary">キャンセル</button>
+                            <button type="submit" id="btn-save-todo" class="btn btn-primary">保存</button>
+                        </div>
+                    </div>
+                </form>
             </div>
         </div>
 
