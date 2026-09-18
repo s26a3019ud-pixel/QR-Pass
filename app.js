@@ -21,8 +21,7 @@ let state = {
     selectedTimelineDay: 1,
     scanningForUrlInput: false,
     currentSemesterFilterIndex: 0,
-    todos: [],
-    selectedTodoFilter: 'pending'
+    memos: []
 };
 
 // ==========================================
@@ -47,13 +46,13 @@ function loadData() {
     const savedHistory = localStorage.getItem('qr_pass_history');
     const savedPeriods = localStorage.getItem('qr_pass_periods');
     const savedFilterIndex = localStorage.getItem('qr_pass_semester_filter_index');
-    const savedTodos = localStorage.getItem('qr_pass_todos');
+    const savedMemos = localStorage.getItem('qr_pass_memos');
 
     if (savedClasses) state.classes = JSON.parse(savedClasses);
     if (savedHistory) state.history = JSON.parse(savedHistory);
     if (savedPeriods) state.periods = JSON.parse(savedPeriods);
     if (savedFilterIndex !== null) state.currentSemesterFilterIndex = Number(savedFilterIndex);
-    if (savedTodos) state.todos = JSON.parse(savedTodos);
+    if (savedMemos) state.memos = JSON.parse(savedMemos);
 }
 
 // Save data to LocalStorage
@@ -62,7 +61,7 @@ function saveData(key) {
     if (!key || key === 'history') localStorage.setItem('qr_pass_history', JSON.stringify(state.history));
     if (!key || key === 'periods') localStorage.setItem('qr_pass_periods', JSON.stringify(state.periods));
     if (!key || key === 'filter') localStorage.setItem('qr_pass_semester_filter_index', state.currentSemesterFilterIndex);
-    if (!key || key === 'todos') localStorage.setItem('qr_pass_todos', JSON.stringify(state.todos));
+    if (!key || key === 'memos') localStorage.setItem('qr_pass_memos', JSON.stringify(state.memos));
 }
 
 // Migrate existing classes to 1st year Zenki (v1.6.2 migration)
@@ -110,8 +109,8 @@ function initApp() {
     // Modals & Form setup
     setupClassModal();
 
-    // ToDo screen setup
-    setupTodoScreen();
+    // Memo / Freeboard screen setup
+    setupMemoScreen();
 
     // QR Scanner setup
     setupQRScanner();
@@ -188,8 +187,8 @@ function setupNavigation() {
             if (screenId === 'home') {
                 updateDashboard();
                 renderTodayClasses();
-            } else if (screenId === 'todo') {
-                renderTodoList();
+            } else if (screenId === 'memo') {
+                renderMemoBoard();
             } else if (screenId === 'timetable') {
                 renderTimetableForCurrentTab();
             } else if (screenId === 'history') {
@@ -1985,110 +1984,223 @@ function getSemesterBadgeHtml(semester) {
 }
 
 // ==========================================
-// TODO LIST & REMINDER LOGIC
+// MEMO / FREEBOARD LOGIC
 // ==========================================
-const todoModal = document.getElementById('todo-modal');
-const todoForm = document.getElementById('todo-form');
+const memoModal = document.getElementById('memo-modal');
+const memoForm = document.getElementById('memo-form');
+const imagePreviewModal = document.getElementById('image-preview-modal');
 
-function setupTodoScreen() {
-    const btnAddTodo = document.getElementById('btn-add-todo');
-    const btnCloseTodoModal = document.getElementById('btn-close-todo-modal');
-    const btnCancelTodoModal = document.getElementById('btn-cancel-todo-modal');
-    const btnDeleteTodo = document.getElementById('btn-delete-todo');
+function setupMemoScreen() {
+    const btnAddMemo = document.getElementById('btn-add-memo');
+    const btnCloseMemoModal = document.getElementById('btn-close-memo-modal');
+    const btnCancelMemoModal = document.getElementById('btn-cancel-memo-modal');
+    const btnDeleteMemo = document.getElementById('btn-delete-memo');
+    const searchInput = document.getElementById('input-search-memo');
 
-    if (btnAddTodo) {
-        btnAddTodo.addEventListener('click', () => openAddTodoModal());
+    if (btnAddMemo) {
+        btnAddMemo.addEventListener('click', () => openAddMemoModal());
     }
 
-    if (btnCloseTodoModal) {
-        btnCloseTodoModal.addEventListener('click', closeTodoModal);
+    if (btnCloseMemoModal) {
+        btnCloseMemoModal.addEventListener('click', closeMemoModal);
     }
 
-    if (btnCancelTodoModal) {
-        btnCancelTodoModal.addEventListener('click', closeTodoModal);
+    if (btnCancelMemoModal) {
+        btnCancelMemoModal.addEventListener('click', closeMemoModal);
     }
 
-    if (btnDeleteTodo) {
-        btnDeleteTodo.addEventListener('click', () => {
-            const todoId = document.getElementById('form-todo-id').value;
-            if (todoId && confirm('このToDoを削除しますか？')) {
-                state.todos = state.todos.filter(t => t.id !== todoId);
-                saveData('todos');
-                closeTodoModal();
-                renderTodoList();
+    if (searchInput) {
+        searchInput.addEventListener('input', () => renderMemoBoard());
+    }
+
+    if (btnDeleteMemo) {
+        btnDeleteMemo.addEventListener('click', () => {
+            const memoId = document.getElementById('form-memo-id').value;
+            if (memoId && confirm('このメモを削除しますか？')) {
+                state.memos = state.memos.filter(m => m.id !== memoId);
+                saveData('memos');
+                closeMemoModal();
+                renderMemoBoard();
             }
         });
     }
 
-    if (todoForm) {
-        todoForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const id = document.getElementById('form-todo-id').value;
-            const title = document.getElementById('form-todo-title').value.trim();
-            const classId = document.getElementById('form-todo-class').value;
-            const dueDate = document.getElementById('form-todo-date').value;
-            const dueTime = document.getElementById('form-todo-time').value || '23:59';
-            const memo = document.getElementById('form-todo-memo').value.trim();
+    // Image Upload & Dropzone Handling
+    const dropzone = document.getElementById('memo-image-dropzone');
+    const fileInput = document.getElementById('input-memo-image');
+    const btnRemoveImage = document.getElementById('btn-remove-memo-image');
 
-            if (!title || !dueDate) return;
+    if (dropzone && fileInput) {
+        dropzone.addEventListener('click', (e) => {
+            if (e.target.closest('#btn-remove-memo-image') || e.target.closest('#memo-image-preview-container')) {
+                return;
+            }
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                processAndSetMemoImage(e.target.files[0]);
+            }
+        });
+    }
+
+    if (btnRemoveImage) {
+        btnRemoveImage.addEventListener('click', (e) => {
+            e.stopPropagation();
+            clearMemoImagePreview();
+        });
+    }
+
+    // Global Paste Event for Screenshots
+    document.addEventListener('paste', (e) => {
+        // Only process paste if memoModal is active
+        if (!memoModal || !memoModal.classList.contains('active')) return;
+
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        for (let item of items) {
+            if (item.type.indexOf('image') !== -1) {
+                const blob = item.getAsFile();
+                processAndSetMemoImage(blob);
+                break;
+            }
+        }
+    });
+
+    if (memoForm) {
+        memoForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const id = document.getElementById('form-memo-id').value;
+            const title = document.getElementById('form-memo-title').value.trim();
+            const classId = document.getElementById('form-memo-class').value;
+            const imageData = document.getElementById('form-memo-image-data').value;
+            const text = document.getElementById('form-memo-text').value.trim();
+
+            if (!title && !text && !imageData) {
+                alert('タイトル、メモ本文、または画像のいずれかを入力してください。');
+                return;
+            }
+
+            const nowIso = new Date().toISOString();
 
             if (id) {
                 // Edit existing
-                const index = state.todos.findIndex(t => t.id === id);
+                const index = state.memos.findIndex(m => m.id === id);
                 if (index !== -1) {
-                    state.todos[index] = {
-                        ...state.todos[index],
+                    state.memos[index] = {
+                        ...state.memos[index],
                         title,
                         classId,
-                        dueDate,
-                        dueTime,
-                        memo
+                        imageData,
+                        text,
+                        updatedAt: nowIso
                     };
                 }
             } else {
                 // Add new
-                const newTodo = {
-                    id: 'todo-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
+                const newMemo = {
+                    id: 'memo-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
                     title,
                     classId,
-                    dueDate,
-                    dueTime,
-                    memo,
-                    completed: false,
-                    createdAt: new Date().toISOString()
+                    imageData,
+                    text,
+                    createdAt: nowIso,
+                    updatedAt: nowIso
                 };
-                state.todos.push(newTodo);
+                state.memos.unshift(newMemo);
             }
 
-            saveData('todos');
-            closeTodoModal();
-            renderTodoList();
+            saveData('memos');
+            closeMemoModal();
+            renderMemoBoard();
         });
     }
 
-    // Filter tabs
-    const filterContainer = document.getElementById('todo-filter-tabs');
-    if (filterContainer) {
-        const filterBtns = filterContainer.querySelectorAll('.tab-todo-filter');
-        filterBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                filterBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                state.selectedTodoFilter = btn.getAttribute('data-filter') || 'pending';
-                renderTodoList();
-            });
+    // Image Lightbox Close
+    const btnCloseLightbox = document.getElementById('btn-close-image-preview');
+    if (btnCloseLightbox && imagePreviewModal) {
+        btnCloseLightbox.addEventListener('click', () => {
+            imagePreviewModal.classList.remove('active');
+        });
+        imagePreviewModal.addEventListener('click', (e) => {
+            if (e.target === imagePreviewModal) {
+                imagePreviewModal.classList.remove('active');
+            }
         });
     }
 }
 
-function updateTodoClassSelect(selectedClassId = '') {
-    const select = document.getElementById('form-todo-class');
+// Compress image via Canvas for Storage Efficiency
+function processAndSetMemoImage(fileOrBlob) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            const maxDim = 1200;
+
+            if (width > maxDim || height > maxDim) {
+                if (width > height) {
+                    height = Math.round((height * maxDim) / width);
+                    width = maxDim;
+                } else {
+                    width = Math.round((width * maxDim) / height);
+                    height = maxDim;
+                }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            setMemoImagePreview(compressedDataUrl);
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(fileOrBlob);
+}
+
+function setMemoImagePreview(dataUrl) {
+    const hiddenInput = document.getElementById('form-memo-image-data');
+    const previewImg = document.getElementById('memo-image-preview');
+    const previewContainer = document.getElementById('memo-image-preview-container');
+    const placeholder = document.getElementById('memo-image-placeholder');
+
+    if (hiddenInput && previewImg && previewContainer && placeholder) {
+        hiddenInput.value = dataUrl;
+        previewImg.src = dataUrl;
+        previewContainer.classList.remove('hidden');
+        placeholder.classList.add('hidden');
+    }
+}
+
+function clearMemoImagePreview() {
+    const hiddenInput = document.getElementById('form-memo-image-data');
+    const previewImg = document.getElementById('memo-image-preview');
+    const previewContainer = document.getElementById('memo-image-preview-container');
+    const placeholder = document.getElementById('memo-image-placeholder');
+    const fileInput = document.getElementById('input-memo-image');
+
+    if (hiddenInput && previewImg && previewContainer && placeholder) {
+        hiddenInput.value = '';
+        previewImg.src = '';
+        previewContainer.classList.add('hidden');
+        placeholder.classList.remove('hidden');
+    }
+    if (fileInput) fileInput.value = '';
+}
+
+function updateMemoClassSelect(selectedClassId = '') {
+    const select = document.getElementById('form-memo-class');
     if (!select) return;
-    
+
     select.innerHTML = '<option value="">指定なし</option>';
-    
     const sortedClasses = [...state.classes].sort((a, b) => a.name.localeCompare(b.name, 'ja'));
-    
+
     sortedClasses.forEach(cls => {
         const opt = document.createElement('option');
         opt.value = cls.id;
@@ -2100,97 +2212,96 @@ function updateTodoClassSelect(selectedClassId = '') {
     });
 }
 
-function openAddTodoModal() {
-    if (!todoForm) return;
-    todoForm.reset();
-    document.getElementById('form-todo-id').value = '';
-    document.getElementById('todo-modal-title').textContent = 'ToDoの追加';
-    
-    // Set default date to today
-    const now = new Date();
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const dd = String(now.getDate()).padStart(2, '0');
-    document.getElementById('form-todo-date').value = `${yyyy}-${mm}-${dd}`;
-    document.getElementById('form-todo-time').value = '23:59';
-    
-    updateTodoClassSelect('');
-    
-    const btnDelete = document.getElementById('btn-delete-todo');
+function openAddMemoModal() {
+    if (!memoForm) return;
+    memoForm.reset();
+    document.getElementById('form-memo-id').value = '';
+    document.getElementById('memo-modal-title').textContent = 'メモの追加';
+
+    clearMemoImagePreview();
+    updateMemoClassSelect('');
+
+    const btnDelete = document.getElementById('btn-delete-memo');
     if (btnDelete) btnDelete.classList.add('hidden');
-    
-    if (todoModal) todoModal.classList.add('active');
+
+    if (memoModal) memoModal.classList.add('active');
 }
 
-function openEditTodoModal(todoId) {
-    const item = state.todos.find(t => t.id === todoId);
-    if (!item || !todoForm) return;
+function openEditMemoModal(memoId) {
+    const item = state.memos.find(m => m.id === memoId);
+    if (!item || !memoForm) return;
 
-    document.getElementById('form-todo-id').value = item.id;
-    document.getElementById('form-todo-title').value = item.title;
-    document.getElementById('form-todo-date').value = item.dueDate;
-    document.getElementById('form-todo-time').value = item.dueTime || '23:59';
-    document.getElementById('form-todo-memo').value = item.memo || '';
-    
-    updateTodoClassSelect(item.classId || '');
+    document.getElementById('form-memo-id').value = item.id;
+    document.getElementById('form-memo-title').value = item.title || '';
+    document.getElementById('form-memo-text').value = item.text || '';
 
-    document.getElementById('todo-modal-title').textContent = 'ToDoの編集';
-    
-    const btnDelete = document.getElementById('btn-delete-todo');
+    updateMemoClassSelect(item.classId || '');
+
+    if (item.imageData) {
+        setMemoImagePreview(item.imageData);
+    } else {
+        clearMemoImagePreview();
+    }
+
+    document.getElementById('memo-modal-title').textContent = 'メモの編集';
+
+    const btnDelete = document.getElementById('btn-delete-memo');
     if (btnDelete) btnDelete.classList.remove('hidden');
 
-    if (todoModal) todoModal.classList.add('active');
+    if (memoModal) memoModal.classList.add('active');
 }
 
-function closeTodoModal() {
-    if (todoModal) todoModal.classList.remove('active');
+function closeMemoModal() {
+    if (memoModal) memoModal.classList.remove('active');
 }
 
-function toggleTodoStatus(todoId) {
-    const item = state.todos.find(t => t.id === todoId);
-    if (item) {
-        item.completed = !item.completed;
-        saveData('todos');
-        renderTodoList();
+function openLightbox(imageSrc) {
+    const lightboxImg = document.getElementById('lightbox-image-src');
+    if (lightboxImg && imagePreviewModal) {
+        lightboxImg.src = imageSrc;
+        imagePreviewModal.classList.add('active');
     }
 }
 
-function renderTodoList() {
-    const container = document.getElementById('todo-list-container');
+function renderMemoBoard() {
+    const container = document.getElementById('memo-list-container');
     if (!container) return;
 
-    const filter = state.selectedTodoFilter || 'pending';
+    const searchInput = document.getElementById('input-search-memo');
+    const keyword = searchInput ? searchInput.value.trim().toLowerCase() : '';
 
-    // 1. Filter items
-    let filtered = state.todos.filter(item => {
-        if (filter === 'pending') return !item.completed;
-        if (filter === 'completed') return item.completed;
-        return true; // 'all'
+    // Filter memos by keyword
+    let filtered = state.memos.filter(item => {
+        if (!keyword) return true;
+
+        const titleMatch = item.title && item.title.toLowerCase().includes(keyword);
+        const textMatch = item.text && item.text.toLowerCase().includes(keyword);
+        
+        let classMatch = false;
+        if (item.classId) {
+            const cls = state.classes.find(c => c.id === item.classId);
+            if (cls && cls.name.toLowerCase().includes(keyword)) {
+                classMatch = true;
+            }
+        }
+
+        return titleMatch || textMatch || classMatch;
     });
 
-    // 2. Sort items by due datetime (ascending), and completed items at bottom if 'all' filter
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
+    // Sort by updatedAt descending
     filtered.sort((a, b) => {
-        if (a.completed !== b.completed) {
-            return a.completed ? 1 : -1;
-        }
-        const timeA = `${a.dueDate}T${a.dueTime || '23:59'}`;
-        const timeB = `${b.dueDate}T${b.dueTime || '23:59'}`;
-        return timeA.localeCompare(timeB);
+        const timeA = a.updatedAt || a.createdAt || '';
+        const timeB = b.updatedAt || b.createdAt || '';
+        return timeB.localeCompare(timeA);
     });
 
     container.innerHTML = '';
 
     if (filtered.length === 0) {
-        let emptyMsg = 'ToDoはありません';
-        if (filter === 'pending') emptyMsg = '未完了のToDoはありません';
-        if (filter === 'completed') emptyMsg = '完了済みのToDoはありません';
-
+        let emptyMsg = keyword ? '条件に一致するメモが見つかりません' : 'メモやスクショがありません';
         container.innerHTML = `
-            <div class="empty-state">
-                <i class="fa-solid fa-list-check"></i>
+            <div class="empty-state" style="grid-column: 1 / -1;">
+                <i class="fa-solid fa-note-sticky"></i>
                 <p>${emptyMsg}</p>
             </div>
         `;
@@ -2199,84 +2310,84 @@ function renderTodoList() {
 
     filtered.forEach(item => {
         const card = document.createElement('div');
-        card.className = `todo-card ${item.completed ? 'completed' : ''}`;
+        card.className = 'memo-card';
 
-        // Calculate due status
-        let dueBadgeHtml = '';
-        if (!item.completed) {
-            if (item.dueDate < todayStr) {
-                dueBadgeHtml = `<span class="todo-due-badge overdue"><i class="fa-solid fa-triangle-exclamation"></i> 期限切れ (${formatDueDateLabel(item.dueDate, item.dueTime)})</span>`;
-            } else if (item.dueDate === todayStr) {
-                dueBadgeHtml = `<span class="todo-due-badge today"><i class="fa-solid fa-clock"></i> 今日 ${item.dueTime || ''}</span>`;
-            } else {
-                dueBadgeHtml = `<span class="todo-due-badge upcoming"><i class="fa-regular fa-calendar"></i> ${formatDueDateLabel(item.dueDate, item.dueTime)}</span>`;
-            }
-        } else {
-            dueBadgeHtml = `<span class="todo-due-badge upcoming"><i class="fa-regular fa-calendar-check"></i> ${formatDueDateLabel(item.dueDate, item.dueTime)}</span>`;
-        }
-
-        // Associated class info
+        // Header info
         let classTagHtml = '';
         if (item.classId) {
             const cls = state.classes.find(c => c.id === item.classId);
             if (cls) {
-                classTagHtml = `<span class="todo-class-tag"><i class="fa-solid fa-book"></i> ${cls.name}</span>`;
+                classTagHtml = `<span class="memo-class-tag"><i class="fa-solid fa-book"></i> ${cls.name}</span>`;
             }
         }
 
+        const dateFormatted = formatMemoDate(item.updatedAt || item.createdAt);
+
+        // Image HTML
+        let imageHtml = '';
+        if (item.imageData) {
+            imageHtml = `
+                <div class="memo-card-image-wrapper" title="タップして拡大表示">
+                    <img src="${item.imageData}" alt="メモ画像" loading="lazy">
+                </div>
+            `;
+        }
+
+        // Title HTML
+        let titleHtml = '';
+        if (item.title) {
+            titleHtml = `<div class="memo-card-title">${escapeHtml(item.title)}</div>`;
+        } else if (!item.imageData && item.text) {
+            // Fallback title from text preview if no title and no image
+            const firstLine = item.text.split('\n')[0].substring(0, 30);
+            titleHtml = `<div class="memo-card-title">${escapeHtml(firstLine)}</div>`;
+        }
+
         card.innerHTML = `
-            <div class="todo-checkbox-wrapper">
-                <div class="todo-checkbox" title="完了/未完了を切替">
-                    <i class="fa-solid fa-check"></i>
-                </div>
+            <div class="memo-card-header">
+                ${titleHtml}
+                ${classTagHtml}
             </div>
-            <div class="todo-content">
-                <div class="todo-header-line">
-                    ${classTagHtml}
-                    ${dueBadgeHtml}
-                </div>
-                <div class="todo-title">${escapeHtml(item.title)}</div>
-                ${item.memo ? `<div class="todo-memo">${escapeHtml(item.memo)}</div>` : ''}
-            </div>
-            <div class="todo-actions">
-                <button type="button" class="btn-todo-icon btn-edit-todo" title="編集">
-                    <i class="fa-solid fa-pen-to-square"></i>
-                </button>
+            ${imageHtml}
+            ${item.text ? `<div class="memo-card-text">${escapeHtml(item.text)}</div>` : ''}
+            <div class="memo-card-footer">
+                <span><i class="fa-regular fa-clock"></i> ${dateFormatted}</span>
+                <span style="font-size: 0.75rem; color: var(--text-muted);"><i class="fa-solid fa-pen"></i></span>
             </div>
         `;
 
-        // Checkbox toggle event
-        const checkboxEl = card.querySelector('.todo-checkbox');
-        checkboxEl.addEventListener('click', (e) => {
-            e.stopPropagation();
-            toggleTodoStatus(item.id);
-        });
+        // Image click -> Lightbox
+        if (item.imageData) {
+            const imgWrapper = card.querySelector('.memo-card-image-wrapper');
+            if (imgWrapper) {
+                imgWrapper.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    openLightbox(item.imageData);
+                });
+            }
+        }
 
-        // Edit button event
-        const editBtn = card.querySelector('.btn-edit-todo');
-        editBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            openEditTodoModal(item.id);
-        });
-
-        // Card click event (open edit)
+        // Card click -> Edit modal
         card.addEventListener('click', () => {
-            openEditTodoModal(item.id);
+            openEditMemoModal(item.id);
         });
 
         container.appendChild(card);
     });
 }
 
-function formatDueDateLabel(dateStr, timeStr) {
-    if (!dateStr) return '';
-    const parts = dateStr.split('-');
-    if (parts.length !== 3) return dateStr;
+function formatMemoDate(isoStr) {
+    if (!isoStr) return '';
+    const dt = new Date(isoStr);
+    if (isNaN(dt.getTime())) return isoStr;
 
-    const dt = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-    const dayChar = DAY_NAMES[dt.getDay()].charAt(0);
-    const timeDisplay = timeStr ? ` ${timeStr}` : '';
-    return `${Number(parts[1])}/${Number(parts[2])}(${dayChar})${timeDisplay}`;
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const dd = String(dt.getDate()).padStart(2, '0');
+    const hh = String(dt.getHours()).padStart(2, '0');
+    const mi = String(dt.getMinutes()).padStart(2, '0');
+
+    return `${yyyy}/${mm}/${dd} ${hh}:${mi}`;
 }
 
 function escapeHtml(str) {

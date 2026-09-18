@@ -1528,57 +1528,29 @@ body {
 }
 
 /* ==========================================
-   TODO LIST & REMINDER STYLES
+   MEMO / FREEBOARD STYLES
    ========================================== */
-.todo-filter-tabs {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 16px;
-    background: rgba(255, 255, 255, 0.02);
-    padding: 4px;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.04);
-}
-
-.tab-todo-filter {
-    flex: 1;
-    background: transparent;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 8px;
-    color: var(--text-muted);
-    font-size: 0.8rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: var(--transition-smooth);
-}
-
-.tab-todo-filter:hover {
-    color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.04);
-}
-
-.tab-todo-filter.active {
-    background: rgba(255, 255, 255, 0.08);
-    color: var(--text-primary);
-    font-weight: 600;
-}
-
-.todo-list-container {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+.memo-grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
     padding-bottom: 30px;
 }
 
-.todo-card {
+@media (max-width: 480px) {
+    .memo-grid-container {
+        grid-template-columns: 1fr;
+    }
+}
+
+.memo-card {
     background: var(--card-bg);
     border: 1px solid var(--card-border);
     border-radius: 16px;
     padding: 14px 16px;
     display: flex;
-    align-items: flex-start;
-    gap: 12px;
+    flex-direction: column;
+    gap: 10px;
     transition: var(--transition-smooth);
     user-select: none;
     -webkit-user-select: none;
@@ -1587,75 +1559,75 @@ body {
     overflow: hidden;
 }
 
-.todo-card:hover {
-    border-color: rgba(255, 255, 255, 0.12);
+.memo-card:hover {
+    border-color: rgba(255, 255, 255, 0.15);
     background: rgba(255, 255, 255, 0.03);
+    transform: translateY(-2px);
 }
 
-.todo-card.completed {
-    opacity: 0.55;
-    background: rgba(0, 0, 0, 0.2);
-    border-color: rgba(255, 255, 255, 0.03);
-}
-
-.todo-checkbox-wrapper {
+.memo-card-header {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    padding-top: 2px;
-}
-
-.todo-checkbox {
-    width: 22px;
-    height: 22px;
-    border-radius: 6px;
-    border: 2px solid rgba(255, 255, 255, 0.25);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: var(--transition-smooth);
-    background: rgba(255, 255, 255, 0.03);
-    color: transparent;
-}
-
-.todo-card:hover .todo-checkbox {
-    border-color: var(--accent-primary);
-}
-
-.todo-card.completed .todo-checkbox {
-    background: var(--accent-primary);
-    border-color: var(--accent-primary);
-    color: #ffffff;
-}
-
-.todo-content {
-    flex: 1;
-    min-width: 0;
-}
-
-.todo-header-line {
-    display: flex;
-    align-items: center;
+    justify-content: space-between;
+    align-items: flex-start;
     gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 4px;
 }
 
-.todo-title {
+.memo-card-title {
     font-size: 0.95rem;
     font-weight: 600;
     color: var(--text-primary);
-    word-break: break-word;
     line-height: 1.4;
+    word-break: break-word;
 }
 
-.todo-card.completed .todo-title {
-    text-decoration: line-through;
+.memo-card-image-wrapper {
+    width: 100%;
+    border-radius: 10px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    max-height: 240px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-in;
+    position: relative;
+}
+
+.memo-card-image-wrapper img {
+    width: 100%;
+    height: 100%;
+    max-height: 240px;
+    object-fit: cover;
+    transition: var(--transition-smooth);
+}
+
+.memo-card-image-wrapper:hover img {
+    transform: scale(1.03);
+}
+
+.memo-card-text {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 180px;
+    overflow-y: auto;
+}
+
+.memo-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    font-size: 0.72rem;
     color: var(--text-muted);
 }
 
-.todo-class-tag {
+.memo-class-tag {
     font-size: 0.7rem;
     padding: 2px 8px;
     border-radius: 6px;
@@ -1666,82 +1638,5 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-}
-
-.todo-due-bar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 6px;
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-}
-
-/* 期限バッジ */
-.todo-due-badge {
-    padding: 2px 8px;
-    border-radius: 6px;
-    font-size: 0.7rem;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.todo-due-badge.overdue {
-    background: rgba(244, 63, 94, 0.18);
-    color: #f43f5e;
-    border: 1px solid rgba(244, 63, 94, 0.3);
-}
-
-.todo-due-badge.today {
-    background: rgba(245, 158, 11, 0.18);
-    color: #f59e0b;
-    border: 1px solid rgba(245, 158, 11, 0.3);
-}
-
-.todo-due-badge.upcoming {
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--text-secondary);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.todo-memo {
-    margin-top: 6px;
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    background: rgba(0, 0, 0, 0.15);
-    padding: 6px 10px;
-    border-radius: 8px;
-    line-height: 1.4;
-    word-break: break-word;
-    white-space: pre-wrap;
-}
-
-.todo-actions {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding-top: 2px;
-}
-
-.btn-todo-icon {
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    border: none;
-    background: transparent;
-    color: var(--text-muted);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: var(--transition-smooth);
-}
-
-.btn-todo-icon:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: var(--text-primary);
 }
 

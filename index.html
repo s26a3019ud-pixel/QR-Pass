@@ -211,23 +211,24 @@
                 </div>
             </section>
 
-            <!-- TODO SCREEN -->
-            <section id="screen-todo" class="app-screen">
+            <!-- MEMO / FREEBOARD SCREEN -->
+            <section id="screen-memo" class="app-screen">
                 <div class="section-header-row" style="margin-bottom: 12px;">
-                    <h3>ToDo・リマインダー</h3>
-                    <button id="btn-add-todo" class="btn btn-primary btn-sm" style="width: auto; padding: 6px 14px; font-size: 0.8rem; font-weight: 600;">
-                        <i class="fa-solid fa-plus"></i> ToDoを追加
+                    <h3>メモ帳・フリーボード</h3>
+                    <button id="btn-add-memo" class="btn btn-primary btn-sm" style="width: auto; padding: 6px 14px; font-size: 0.8rem; font-weight: 600;">
+                        <i class="fa-solid fa-plus"></i> メモを追加
                     </button>
                 </div>
 
-                <!-- フィルタータブ (未完了 / すべて / 完了済み) -->
-                <div class="todo-filter-tabs" id="todo-filter-tabs">
-                    <button class="tab-todo-filter active" data-filter="pending">未完了</button>
-                    <button class="tab-todo-filter" data-filter="all">すべて</button>
-                    <button class="tab-todo-filter" data-filter="completed">完了済み</button>
+                <!-- 検索バー -->
+                <div class="memo-filter-row" style="margin-bottom: 16px;">
+                    <div style="position: relative; width: 100%;">
+                        <input type="text" id="input-search-memo" placeholder="キーワードでメモを検索..." style="width: 100%; padding: 8px 12px 8px 34px; font-size: 0.8rem; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 10px; color: var(--text-primary);">
+                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 0.75rem; color: var(--text-muted);"></i>
+                    </div>
                 </div>
 
-                <div id="todo-list-container" class="todo-list-container">
+                <div id="memo-list-container" class="memo-grid-container">
                     <!-- Dynamic rendering -->
                 </div>
             </section>
@@ -239,9 +240,9 @@
                 <i class="fa-solid fa-house-chimney"></i>
                 <span>ホーム</span>
             </button>
-            <button class="nav-item" data-screen="todo">
-                <i class="fa-solid fa-list-check"></i>
-                <span>ToDo</span>
+            <button class="nav-item" data-screen="memo">
+                <i class="fa-solid fa-note-sticky"></i>
+                <span>メモ帳</span>
             </button>
             <button class="nav-item" data-screen="history">
                 <i class="fa-solid fa-clock-rotate-left"></i>
@@ -435,55 +436,73 @@
             </div>
         </div>
 
-        <!-- ToDo Modal (Add/Edit) -->
-        <div id="todo-modal" class="modal-overlay">
+        <!-- Memo Modal (Add/Edit) -->
+        <div id="memo-modal" class="modal-overlay">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h3 id="todo-modal-title">ToDoの追加</h3>
-                    <button id="btn-close-todo-modal" class="btn-close">
+                    <h3 id="memo-modal-title">メモの追加</h3>
+                    <button id="btn-close-memo-modal" class="btn-close">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
-                <form id="todo-form" class="modal-body">
-                    <input type="hidden" id="form-todo-id">
+                <form id="memo-form" class="modal-body">
+                    <input type="hidden" id="form-memo-id">
+                    <input type="hidden" id="form-memo-image-data">
 
                     <div class="form-group">
-                        <label for="form-todo-title">タイトル / 課題名 <span class="required">*</span></label>
-                        <input type="text" id="form-todo-title" placeholder="例: レポート提出, 小テスト復習" required>
+                        <label for="form-memo-title">タイトル (任意)</label>
+                        <input type="text" id="form-memo-title" placeholder="例: 前期定期試験の範囲, レポート注意事項">
                     </div>
 
                     <div class="form-group">
-                        <label for="form-todo-class">関連する授業 (任意)</label>
-                        <select id="form-todo-class">
+                        <label for="form-memo-class">関連する授業 (任意)</label>
+                        <select id="form-memo-class">
                             <option value="">指定なし</option>
                             <!-- Dynamic options -->
                         </select>
                     </div>
 
-                    <div class="form-row" style="display: flex; gap: 12px; width: 100%;">
-                        <div class="form-group" style="flex: 1;">
-                            <label for="form-todo-date">期限日 <span class="required">*</span></label>
-                            <input type="date" id="form-todo-date" required>
-                        </div>
-                        <div class="form-group" style="flex: 1;">
-                            <label for="form-todo-time">期限時刻</label>
-                            <input type="time" id="form-todo-time" value="23:59">
+                    <!-- 画像添付エリア -->
+                    <div class="form-group">
+                        <label>スクリーンショット / 画像添付 (任意)</label>
+                        <div id="memo-image-dropzone" class="image-upload-zone" style="border: 2px dashed rgba(255,255,255,0.1); border-radius: 12px; padding: 16px; text-align: center; cursor: pointer; background: rgba(255,255,255,0.01); transition: var(--transition-smooth);">
+                            <div id="memo-image-preview-container" class="hidden" style="position: relative; width: 100%; margin-bottom: 8px;">
+                                <img id="memo-image-preview" src="" style="max-height: 200px; width: auto; max-width: 100%; border-radius: 8px; object-fit: contain; border: 1px solid rgba(255,255,255,0.1);">
+                                <button type="button" id="btn-remove-memo-image" class="btn-close" style="position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.7); width: 28px; height: 28px; font-size: 0.8rem; border-radius: 50%; color: white;">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                            <div id="memo-image-placeholder">
+                                <i class="fa-solid fa-file-image" style="font-size: 1.8rem; color: var(--text-muted); margin-bottom: 6px;"></i>
+                                <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 0;">タップして画像を選択、またはクリップボードから貼り付け (Ctrl+V)</p>
+                            </div>
+                            <input type="file" id="input-memo-image" class="hidden" accept="image/*">
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label for="form-todo-memo">メモ (任意)</label>
-                        <textarea id="form-todo-memo" rows="3" placeholder="提出場所や注意点など"></textarea>
+                        <label for="form-memo-text">メモ本文</label>
+                        <textarea id="form-memo-text" rows="5" placeholder="ここに自由なメモを入力..."></textarea>
                     </div>
 
                     <div class="modal-footer">
-                        <button type="button" id="btn-delete-todo" class="btn btn-danger hidden">削除</button>
+                        <button type="button" id="btn-delete-memo" class="btn btn-danger hidden">削除</button>
                         <div class="footer-actions">
-                            <button type="button" id="btn-cancel-todo-modal" class="btn btn-secondary">キャンセル</button>
-                            <button type="submit" id="btn-save-todo" class="btn btn-primary">保存</button>
+                            <button type="button" id="btn-cancel-memo-modal" class="btn btn-secondary">キャンセル</button>
+                            <button type="submit" id="btn-save-memo" class="btn btn-primary">保存</button>
                         </div>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <!-- Image Preview Modal (Lightbox) -->
+        <div id="image-preview-modal" class="modal-overlay" style="z-index: 100; background: rgba(0, 0, 0, 0.9);">
+            <div style="position: relative; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                <button id="btn-close-image-preview" class="btn-close" style="position: absolute; top: -40px; right: 0; color: white; font-size: 1.5rem; background: rgba(255,255,255,0.1); width: 36px; height: 36px; border-radius: 50%;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <img id="lightbox-image-src" src="" style="max-width: 95vw; max-height: 85vh; object-fit: contain; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
             </div>
         </div>
 
