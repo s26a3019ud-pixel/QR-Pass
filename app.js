@@ -452,6 +452,23 @@ function renderTodayClasses(smoothScroll = true) {
                 const isOngoing = isPeriodOngoing(targetGroup.startPeriod, targetGroup.endPeriod, selectedDay);
                 const semesterBadgeHtml = getSemesterBadgeHtml(mainCls.semester);
 
+                let typeBadgeHtml = '';
+                let titleIcon = 'fa-solid fa-book';
+                let teacherLabel = '担当';
+                let roomLabel = '教室';
+
+                if (mainCls.type === 'committee') {
+                    titleIcon = 'fa-solid fa-users';
+                    typeBadgeHtml = '<span class="class-type-badge type-committee">👥 予定・委員会</span>';
+                    teacherLabel = '主催';
+                    roomLabel = '場所';
+                } else if (mainCls.type === 'other') {
+                    titleIcon = 'fa-solid fa-bookmark';
+                    typeBadgeHtml = '<span class="class-type-badge type-other">📌 その他</span>';
+                    teacherLabel = '担当';
+                    roomLabel = '場所';
+                }
+
                 const card = document.createElement('div');
                 card.className = `timeline-card ${isOngoing ? 'ongoing' : ''}`;
                 card.innerHTML = `
@@ -465,15 +482,15 @@ function renderTodayClasses(smoothScroll = true) {
                     </div>
                     <div class="timeline-right">
                         <div class="timeline-class-title-tag">
-                            <i class="fa-solid fa-book"></i> ${targetGroup.name} ${semesterBadgeHtml}
+                            <i class="${titleIcon}"></i> ${targetGroup.name} ${typeBadgeHtml} ${semesterBadgeHtml}
                         </div>
                         <div class="timeline-meta-row">
                             <i class="fa-solid fa-user"></i>
-                            <span>担当：${mainCls.teacher || '未登録'}</span>
+                            <span>${teacherLabel}：${mainCls.teacher || '未登録'}</span>
                         </div>
                         <div class="timeline-meta-row">
                             <i class="fa-solid fa-location-dot"></i>
-                            <span>教室：${mainCls.room || '未登録'}</span>
+                            <span>${roomLabel}：${mainCls.room || '未登録'}</span>
                         </div>
                     </div>
                 `;
@@ -603,10 +620,73 @@ function renderTimetableForCurrentTab() {
 const classModal = document.getElementById('class-modal');
 const classForm = document.getElementById('class-form');
 
+function setClassTypeTab(type = 'class') {
+    const hiddenTypeInput = document.getElementById('form-class-type');
+    if (hiddenTypeInput) hiddenTypeInput.value = type;
+
+    const tabContainer = document.getElementById('class-type-tabs');
+    if (tabContainer) {
+        const btns = tabContainer.querySelectorAll('.tab-type-btn');
+        btns.forEach(btn => {
+            if (btn.getAttribute('data-type') === type) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+    }
+
+    updateClassFormLabels(type);
+}
+
+function updateClassFormLabels(type) {
+    const labelName = document.getElementById('label-class-name');
+    const labelTeacher = document.getElementById('label-class-teacher');
+    const labelRoom = document.getElementById('label-class-room');
+    const inputName = document.getElementById('form-class-name');
+    const inputTeacher = document.getElementById('form-class-teacher');
+    const inputRoom = document.getElementById('form-class-room');
+
+    if (type === 'committee') {
+        if (labelName) labelName.innerHTML = '予定・タイトル <span class="required">*</span>';
+        if (inputName) inputName.placeholder = '例: 〇〇委員会, サークル練習';
+        if (labelTeacher) labelTeacher.textContent = '主催・担当者';
+        if (inputTeacher) inputTeacher.placeholder = '例: 学生会, 〇〇さん';
+        if (labelRoom) labelRoom.textContent = '場所・会議室';
+        if (inputRoom) inputRoom.placeholder = '例: 第1会議室, 部室';
+    } else if (type === 'other') {
+        if (labelName) labelName.innerHTML = '件名・タイトル <span class="required">*</span>';
+        if (inputName) inputName.placeholder = '例: 就職ガイダンス, 面談';
+        if (labelTeacher) labelTeacher.textContent = '担当・関連者';
+        if (inputTeacher) inputTeacher.placeholder = '例: キャリアセンター';
+        if (labelRoom) labelRoom.textContent = '場所・連絡先';
+        if (inputRoom) inputRoom.placeholder = '例: ホール, オンライン';
+    } else {
+        // Default 'class'
+        if (labelName) labelName.innerHTML = '授業名 <span class="required">*</span>';
+        if (inputName) inputName.placeholder = '例: 英語コミュニケーションI';
+        if (labelTeacher) labelTeacher.textContent = '担当教員';
+        if (inputTeacher) inputTeacher.placeholder = '例: 山田 太郎';
+        if (labelRoom) labelRoom.textContent = '教室 / 教室番号';
+        if (inputRoom) inputRoom.placeholder = '例: 301号室, オンライン';
+    }
+}
+
 function setupClassModal() {
     document.getElementById('btn-close-modal').addEventListener('click', closeModal);
     document.getElementById('btn-cancel-modal').addEventListener('click', closeModal);
     
+    const typeTabContainer = document.getElementById('class-type-tabs');
+    if (typeTabContainer) {
+        const btns = typeTabContainer.querySelectorAll('.tab-type-btn');
+        btns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetType = btn.getAttribute('data-type') || 'class';
+                setClassTypeTab(targetType);
+            });
+        });
+    }
+
     const btnScanClassUrl = document.getElementById('btn-scan-class-url');
     if (btnScanClassUrl) {
         btnScanClassUrl.addEventListener('click', () => {
@@ -636,7 +716,7 @@ function setupClassModal() {
 
     document.getElementById('btn-delete-class').addEventListener('click', () => {
         const classId = document.getElementById('form-class-id').value;
-        if (confirm('この授業を削除しますか？\n（出席履歴は削除されません）')) {
+        if (confirm('この項目を削除しますか？')) {
             state.classes = state.classes.filter(c => c.id !== classId);
             saveData('classes');
             closeModal();
@@ -651,6 +731,7 @@ function setupClassModal() {
         e.preventDefault();
         
         const id = document.getElementById('form-class-id').value;
+        const type = document.getElementById('form-class-type').value || 'class';
         const name = document.getElementById('form-class-name').value.trim();
         const year = document.getElementById('form-class-year').value;
         const semester = document.getElementById('form-class-semester').value;
@@ -680,7 +761,7 @@ function setupClassModal() {
         });
 
         if (isDuplicate) {
-            alert('選択中の学年・学期の同じ曜日・時限にすでに他の授業が登録されています。');
+            alert('選択中の学年・学期の同じ曜日・時限にすでに他の項目が登録されています。');
             return;
         }
 
@@ -688,13 +769,13 @@ function setupClassModal() {
             // Edit existing
             const index = state.classes.findIndex(c => c.id === id);
             if (index !== -1) {
-                state.classes[index] = { id, name, year, semester, day, period, teacher, room, urlTemplate, memo };
+                state.classes[index] = { id, type, name, year, semester, day, period, teacher, room, urlTemplate, memo };
             }
         } else {
             // Create new
             const newClass = {
                 id: 'class-' + Date.now().toString(36),
-                name, year, semester, day, period, teacher, room, urlTemplate, memo
+                type, name, year, semester, day, period, teacher, room, urlTemplate, memo
             };
             state.classes.push(newClass);
         }
@@ -710,7 +791,9 @@ function setupClassModal() {
 function openAddClassModal(defaultDay = 1, defaultPeriod = null) {
     classForm.reset();
     document.getElementById('form-class-id').value = '';
-    document.getElementById('modal-title').textContent = '授業の追加';
+    document.getElementById('modal-title').textContent = '時間の登録';
+    
+    setClassTypeTab('class');
     
     const filter = SEMESTER_FILTERS[state.currentSemesterFilterIndex] || SEMESTER_FILTERS[0];
     
@@ -740,7 +823,17 @@ function openEditClassModal(classId) {
     document.getElementById('form-class-url').value = cls.urlTemplate || '';
     document.getElementById('form-class-memo').value = cls.memo || '';
 
-    document.getElementById('modal-title').textContent = '授業情報の編集';
+    const currentType = cls.type || 'class';
+    setClassTypeTab(currentType);
+
+    if (currentType === 'committee') {
+        document.getElementById('modal-title').textContent = '予定・委員会の編集';
+    } else if (currentType === 'other') {
+        document.getElementById('modal-title').textContent = '予定情報の編集';
+    } else {
+        document.getElementById('modal-title').textContent = '授業情報の編集';
+    }
+
     document.getElementById('btn-delete-class').classList.remove('hidden');
     
     classModal.classList.add('active');

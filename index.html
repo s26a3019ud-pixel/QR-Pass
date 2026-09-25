@@ -312,19 +312,33 @@
                     <input type="hidden" id="form-class-semester">
                     <input type="hidden" id="form-class-day">
                     <input type="hidden" id="form-class-period">
+                    <input type="hidden" id="form-class-type" value="class">
+
+                    <!-- 区分 / タイプ選択タブ -->
+                    <div class="class-type-tabs" id="class-type-tabs">
+                        <button type="button" class="tab-type-btn active" data-type="class">
+                            📚 授業
+                        </button>
+                        <button type="button" class="tab-type-btn" data-type="committee">
+                            👥 予定・委員会
+                        </button>
+                        <button type="button" class="tab-type-btn" data-type="other">
+                            📌 その他
+                        </button>
+                    </div>
                     
                     <div class="form-group">
-                        <label for="form-class-name">授業名 <span class="required">*</span></label>
+                        <label id="label-class-name" for="form-class-name">授業名 <span class="required">*</span></label>
                         <input type="text" id="form-class-name" placeholder="例: 英語コミュニケーションI" required>
                     </div>
 
                     <div class="form-group">
-                        <label for="form-class-teacher">担当教員</label>
+                        <label id="label-class-teacher" for="form-class-teacher">担当教員</label>
                         <input type="text" id="form-class-teacher" placeholder="例: 山田 太郎">
                     </div>
 
                     <div class="form-group">
-                        <label for="form-class-room">教室 / 教室番号</label>
+                        <label id="label-class-room" for="form-class-room">教室 / 教室番号</label>
                         <input type="text" id="form-class-room" placeholder="例: 301号室, オンライン">
                     </div>
 
