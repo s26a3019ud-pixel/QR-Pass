@@ -21,7 +21,9 @@ let state = {
     selectedTimelineDay: 1,
     scanningForUrlInput: false,
     currentSemesterFilterIndex: 0,
-    memos: []
+    memos: [],
+    lectureNotes: [],
+    selectedLectureNoteClassFilter: 'all'
 };
 
 // ==========================================
@@ -47,21 +49,29 @@ function loadData() {
     const savedPeriods = localStorage.getItem('qr_pass_periods');
     const savedFilterIndex = localStorage.getItem('qr_pass_semester_filter_index');
     const savedMemos = localStorage.getItem('qr_pass_memos');
+    const savedLectureNotes = localStorage.getItem('qr_pass_lecture_notes');
 
     if (savedClasses) state.classes = JSON.parse(savedClasses);
     if (savedHistory) state.history = JSON.parse(savedHistory);
     if (savedPeriods) state.periods = JSON.parse(savedPeriods);
     if (savedFilterIndex !== null) state.currentSemesterFilterIndex = Number(savedFilterIndex);
     if (savedMemos) state.memos = JSON.parse(savedMemos);
+    if (savedLectureNotes) state.lectureNotes = JSON.parse(savedLectureNotes);
 }
 
 // Save data to LocalStorage
-function saveData(key) {
-    if (!key || key === 'classes') localStorage.setItem('qr_pass_classes', JSON.stringify(state.classes));
+function saveData(key, triggerSync = true) {
+    if (!key || key === 'classes') {
+        localStorage.setItem('qr_pass_classes', JSON.stringify(state.classes));
+        if (triggerSync && typeof isCloudEnabled === 'function' && isCloudEnabled()) {
+            syncToSupabase(false);
+        }
+    }
     if (!key || key === 'history') localStorage.setItem('qr_pass_history', JSON.stringify(state.history));
     if (!key || key === 'periods') localStorage.setItem('qr_pass_periods', JSON.stringify(state.periods));
     if (!key || key === 'filter') localStorage.setItem('qr_pass_semester_filter_index', state.currentSemesterFilterIndex);
     if (!key || key === 'memos') localStorage.setItem('qr_pass_memos', JSON.stringify(state.memos));
+    if (!key || key === 'lectureNotes') localStorage.setItem('qr_pass_lecture_notes', JSON.stringify(state.lectureNotes));
 }
 
 // Migrate existing classes to 1st year Zenki (v1.6.2 migration)
@@ -112,6 +122,9 @@ function initApp() {
     // Memo / Freeboard screen setup
     setupMemoScreen();
 
+    // Lecture Note screen setup
+    setupLectureNoteScreen();
+
     // QR Scanner setup
     setupQRScanner();
 
@@ -133,6 +146,9 @@ function initApp() {
 
     // Handle manaba URL Parameter Import
     handleURLImport();
+
+    // Setup Supabase Cloud Sync
+    setupCloudSync();
 }
 
 // ==========================================
@@ -189,10 +205,10 @@ function setupNavigation() {
                 renderTodayClasses();
             } else if (screenId === 'memo') {
                 renderMemoBoard();
+            } else if (screenId === 'note') {
+                renderLectureNoteList();
             } else if (screenId === 'timetable') {
                 renderTimetableForCurrentTab();
-            } else if (screenId === 'history') {
-                renderHistory();
             } else if (screenId === 'settings') {
                 renderSettings();
             }
@@ -2492,5 +2508,1067 @@ function escapeHtml(str) {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 }
+
+// ==========================================
+// 8. LECTURE NOTE SCREEN & CRUD
+// ==========================================
+const lectureNoteModal = document.getElementById('lecture-note-modal');
+const lectureNoteForm = document.getElementById('lecture-note-form');
+
+function setupLectureNoteScreen() {
+    const btnAddNote = document.getElementById('btn-add-lecture-note');
+    const selectFilter = document.getElementById('select-note-class-filter');
+    const btnCloseModal = document.getElementById('btn-close-lecture-note-modal');
+    const btnCancelModal = document.getElementById('btn-cancel-lecture-note-modal');
+    const btnDeleteNote = document.getElementById('btn-delete-lecture-note');
+
+    // Trigger file select
+    const btnTriggerFile = document.getElementById('btn-trigger-note-file');
+    const inputNotePhoto = document.getElementById('input-note-photo');
+    const btnRemovePhoto = document.getElementById('btn-remove-note-photo');
+    const btnOpenZoomCam = document.getElementById('btn-open-zoom-camera');
+    const btnOpenEditor = document.getElementById('btn-open-photo-editor');
+
+    if (btnAddNote) {
+        btnAddNote.addEventListener('click', () => openAddLectureNoteModal());
+    }
+
+    if (selectFilter) {
+        selectFilter.addEventListener('change', () => {
+            state.selectedLectureNoteClassFilter = selectFilter.value;
+            renderLectureNoteList();
+        });
+    }
+
+    if (btnCloseModal) btnCloseModal.addEventListener('click', closeLectureNoteModal);
+    if (btnCancelModal) btnCancelModal.addEventListener('click', closeLectureNoteModal);
+
+    if (btnTriggerFile && inputNotePhoto) {
+        btnTriggerFile.addEventListener('click', () => inputNotePhoto.click());
+        inputNotePhoto.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                processAndSetLectureNotePhoto(e.target.files[0]);
+            }
+        });
+    }
+
+    if (btnRemovePhoto) {
+        btnRemovePhoto.addEventListener('click', () => clearLectureNotePhotoPreview());
+    }
+
+    if (btnOpenZoomCam) {
+        btnOpenZoomCam.addEventListener('click', () => openZoomCameraModal());
+    }
+
+    if (btnOpenEditor) {
+        btnOpenEditor.addEventListener('click', () => {
+            const hiddenInput = document.getElementById('form-note-image-data');
+            if (hiddenInput && hiddenInput.value) {
+                openPhotoEditorModal(hiddenInput.value);
+            }
+        });
+    }
+
+    if (btnDeleteNote) {
+        btnDeleteNote.addEventListener('click', () => {
+            const noteId = document.getElementById('form-note-id').value;
+            if (noteId && confirm('この講義ノートを削除しますか？')) {
+                state.lectureNotes = state.lectureNotes.filter(n => n.id !== noteId);
+                saveData('lectureNotes');
+                closeLectureNoteModal();
+                renderLectureNoteList();
+            }
+        });
+    }
+
+    if (lectureNoteForm) {
+        lectureNoteForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const id = document.getElementById('form-note-id').value;
+            const classId = document.getElementById('form-note-class').value;
+            const title = document.getElementById('form-note-title').value.trim();
+            const date = document.getElementById('form-note-date').value;
+            const imageData = document.getElementById('form-note-image-data').value;
+            const text = document.getElementById('form-note-text').value.trim();
+
+            if (!classId || !title) return;
+
+            const nowIso = new Date().toISOString();
+
+            if (id) {
+                // Edit existing
+                const index = state.lectureNotes.findIndex(n => n.id === id);
+                if (index !== -1) {
+                    state.lectureNotes[index] = {
+                        ...state.lectureNotes[index],
+                        classId,
+                        title,
+                        date,
+                        imageData,
+                        text,
+                        updatedAt: nowIso
+                    };
+                }
+            } else {
+                // Add new
+                const newNote = {
+                    id: 'note-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
+                    classId,
+                    title,
+                    date,
+                    imageData,
+                    text,
+                    createdAt: nowIso,
+                    updatedAt: nowIso
+                };
+                state.lectureNotes.unshift(newNote);
+            }
+
+            saveData('lectureNotes');
+            closeLectureNoteModal();
+            renderLectureNoteList();
+        });
+    }
+
+    // Initialize Camera and Photo Editor setups
+    setupZoomCameraControls();
+    setupPhotoEditorControls();
+}
+
+function updateLectureNoteClassSelectors(selectedClassId = '') {
+    const formSelect = document.getElementById('form-note-class');
+    const filterSelect = document.getElementById('select-note-class-filter');
+
+    if (formSelect) {
+        formSelect.innerHTML = '<option value="">授業を選択してください</option>';
+        state.classes.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = `${c.name} (${c.day ? DAY_NAMES[c.day].charAt(0) : ''}曜 ${c.period || ''}限)`;
+            if (c.id === selectedClassId) opt.selected = true;
+            formSelect.appendChild(opt);
+        });
+    }
+
+    if (filterSelect) {
+        const currentFilter = state.selectedLectureNoteClassFilter || 'all';
+        filterSelect.innerHTML = '<option value="all">すべての授業のノート</option>';
+        state.classes.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.name;
+            if (c.id === currentFilter) opt.selected = true;
+            filterSelect.appendChild(opt);
+        });
+    }
+}
+
+function processAndSetLectureNotePhoto(fileOrBlob) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            const maxDim = 1600; // High resolution for whiteboard/slides
+
+            if (width > maxDim || height > maxDim) {
+                if (width > height) {
+                    height = Math.round((height * maxDim) / width);
+                    width = maxDim;
+                } else {
+                    width = Math.round((width * maxDim) / height);
+                    height = maxDim;
+                }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+            setLectureNotePhotoPreview(compressedDataUrl);
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(fileOrBlob);
+}
+
+function setLectureNotePhotoPreview(dataUrl) {
+    const hiddenInput = document.getElementById('form-note-image-data');
+    const previewImg = document.getElementById('note-photo-preview');
+    const previewContainer = document.getElementById('note-photo-preview-container');
+
+    if (hiddenInput && previewImg && previewContainer) {
+        hiddenInput.value = dataUrl;
+        previewImg.src = dataUrl;
+        previewContainer.classList.remove('hidden');
+    }
+}
+
+function clearLectureNotePhotoPreview() {
+    const hiddenInput = document.getElementById('form-note-image-data');
+    const previewImg = document.getElementById('note-photo-preview');
+    const previewContainer = document.getElementById('note-photo-preview-container');
+    const inputPhoto = document.getElementById('input-note-photo');
+
+    if (hiddenInput && previewImg && previewContainer) {
+        hiddenInput.value = '';
+        previewImg.src = '';
+        previewContainer.classList.add('hidden');
+    }
+    if (inputPhoto) inputPhoto.value = '';
+}
+
+function openAddLectureNoteModal(defaultClassId = null) {
+    if (!lectureNoteForm) return;
+    lectureNoteForm.reset();
+    document.getElementById('form-note-id').value = '';
+    document.getElementById('lecture-note-modal-title').textContent = '講義ノートの作成';
+
+    clearLectureNotePhotoPreview();
+
+    // Default to today
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    document.getElementById('form-note-date').value = `${yyyy}-${mm}-${dd}`;
+
+    const targetClassId = defaultClassId || (state.selectedLectureNoteClassFilter !== 'all' ? state.selectedLectureNoteClassFilter : (state.classes[0] ? state.classes[0].id : ''));
+    updateLectureNoteClassSelectors(targetClassId);
+
+    const btnDelete = document.getElementById('btn-delete-lecture-note');
+    if (btnDelete) btnDelete.classList.add('hidden');
+
+    if (lectureNoteModal) lectureNoteModal.classList.add('active');
+}
+
+function openEditLectureNoteModal(noteId) {
+    const note = state.lectureNotes.find(n => n.id === noteId);
+    if (!note || !lectureNoteForm) return;
+
+    document.getElementById('form-note-id').value = note.id;
+    document.getElementById('form-note-title').value = note.title;
+    document.getElementById('form-note-date').value = note.date || '';
+    document.getElementById('form-note-text').value = note.text || '';
+
+    updateLectureNoteClassSelectors(note.classId);
+
+    if (note.imageData) {
+        setLectureNotePhotoPreview(note.imageData);
+    } else {
+        clearLectureNotePhotoPreview();
+    }
+
+    document.getElementById('lecture-note-modal-title').textContent = '講義ノートの編集';
+
+    const btnDelete = document.getElementById('btn-delete-lecture-note');
+    if (btnDelete) btnDelete.classList.remove('hidden');
+
+    if (lectureNoteModal) lectureNoteModal.classList.add('active');
+}
+
+function closeLectureNoteModal() {
+    if (lectureNoteModal) lectureNoteModal.classList.remove('active');
+}
+
+function renderLectureNoteList() {
+    const container = document.getElementById('note-list-container');
+    if (!container) return;
+
+    updateLectureNoteClassSelectors();
+
+    const filterClass = state.selectedLectureNoteClassFilter || 'all';
+
+    let filtered = state.lectureNotes.filter(n => {
+        if (filterClass === 'all') return true;
+        return n.classId === filterClass;
+    });
+
+    // Sort by date / updatedAt descending
+    filtered.sort((a, b) => {
+        const dateA = a.date || a.createdAt || '';
+        const dateB = b.date || b.createdAt || '';
+        return dateB.localeCompare(dateA);
+    });
+
+    container.innerHTML = '';
+
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fa-solid fa-book-open"></i>
+                <p>保存された講義ノートがありません</p>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="openAddLectureNoteModal()" style="margin-top: 10px;">
+                    <i class="fa-solid fa-plus"></i> 最初のノートを作成
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    filtered.forEach(note => {
+        const cls = state.classes.find(c => c.id === note.classId);
+        const className = cls ? cls.name : '未分類の授業';
+
+        const card = document.createElement('div');
+        card.className = 'lecture-note-card';
+
+        let imageHtml = '';
+        if (note.imageData) {
+            imageHtml = `
+                <div class="lecture-note-image-wrapper" title="タップして拡大">
+                    <img src="${note.imageData}" alt="板書写真" loading="lazy">
+                </div>
+            `;
+        }
+
+        card.innerHTML = `
+            <div class="lecture-note-header">
+                <div>
+                    <span class="memo-class-tag" style="margin-bottom: 4px; display: inline-flex;"><i class="fa-solid fa-book"></i> ${escapeHtml(className)}</span>
+                    <div class="lecture-note-title">${escapeHtml(note.title)}</div>
+                </div>
+                <div class="lecture-note-meta">
+                    <i class="fa-regular fa-calendar"></i> ${note.date ? escapeHtml(note.date) : ''}
+                </div>
+            </div>
+            ${imageHtml}
+            ${note.text ? `<div class="lecture-note-body">${escapeHtml(note.text)}</div>` : ''}
+        `;
+
+        if (note.imageData) {
+            const imgWrap = card.querySelector('.lecture-note-image-wrapper');
+            if (imgWrap) {
+                imgWrap.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    openLightbox(note.imageData);
+                });
+            }
+        }
+
+        card.addEventListener('click', () => openEditLectureNoteModal(note.id));
+
+        container.appendChild(card);
+    });
+}
+
+// ==========================================
+// 9. ZOOM & WIDE CAMERA LOGIC
+// ==========================================
+let zoomCameraModal = null;
+let zoomCameraVideo = null;
+let zoomCameraTrack = null;
+let zoomStream = null;
+let zoomCapabilities = null;
+
+function setupZoomCameraControls() {
+    zoomCameraModal = document.getElementById('zoom-camera-modal');
+    zoomCameraVideo = document.getElementById('zoom-camera-video');
+    const btnClose = document.getElementById('btn-close-zoom-camera');
+    const btnCapture = document.getElementById('btn-capture-zoom-photo');
+    const sliderZoom = document.getElementById('slider-camera-zoom');
+    const txtZoomVal = document.getElementById('txt-camera-zoom-val');
+    const presetBtns = document.querySelectorAll('.btn-zoom-preset');
+    const inputNative = document.getElementById('input-native-camera');
+
+    if (btnClose) btnClose.addEventListener('click', closeZoomCameraModal);
+
+    if (sliderZoom && txtZoomVal) {
+        sliderZoom.addEventListener('input', () => {
+            const val = parseFloat(sliderZoom.value);
+            txtZoomVal.textContent = val.toFixed(1) + 'x';
+            applyZoom(val);
+        });
+    }
+
+    presetBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            presetBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const targetZoom = parseFloat(btn.getAttribute('data-zoom') || '1.0');
+            if (sliderZoom) sliderZoom.value = targetZoom;
+            if (txtZoomVal) txtZoomVal.textContent = targetZoom.toFixed(1) + 'x';
+            applyZoom(targetZoom);
+        });
+    });
+
+    if (btnCapture) {
+        btnCapture.addEventListener('click', () => capturePhotoFromVideo());
+    }
+
+    if (inputNative) {
+        inputNative.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                processAndSetLectureNotePhoto(e.target.files[0]);
+                closeZoomCameraModal();
+            }
+        });
+    }
+}
+
+async function openZoomCameraModal() {
+    if (!zoomCameraModal || !zoomCameraVideo) return;
+    zoomCameraModal.classList.add('active');
+
+    try {
+        const constraints = {
+            video: {
+                facingMode: { ideal: 'environment' },
+                width: { ideal: 1920 },
+                height: { ideal: 1080 }
+            },
+            audio: false
+        };
+
+        zoomStream = await navigator.mediaDevices.getUserMedia(constraints);
+        zoomCameraVideo.srcObject = zoomStream;
+        await zoomCameraVideo.play();
+
+        const tracks = zoomStream.getVideoTracks();
+        if (tracks.length > 0) {
+            zoomCameraTrack = tracks[0];
+            if (typeof zoomCameraTrack.getCapabilities === 'function') {
+                zoomCapabilities = zoomCameraTrack.getCapabilities();
+                const sliderZoom = document.getElementById('slider-camera-zoom');
+                if (sliderZoom && zoomCapabilities.zoom) {
+                    sliderZoom.min = zoomCapabilities.zoom.min;
+                    sliderZoom.max = zoomCapabilities.zoom.max;
+                    sliderZoom.step = zoomCapabilities.zoom.step || 0.1;
+                    sliderZoom.value = zoomCapabilities.zoom.min;
+                }
+            }
+        }
+    } catch (err) {
+        console.warn('Zoom Camera access failed:', err);
+        alert('カメラの起動に失敗しました。カメラの利用権限を許可するか、写真選択をご利用ください。');
+        closeZoomCameraModal();
+    }
+}
+
+function applyZoom(zoomValue) {
+    if (zoomCameraTrack && zoomCapabilities && zoomCapabilities.zoom) {
+        try {
+            zoomCameraTrack.applyConstraints({
+                advanced: [{ zoom: zoomValue }]
+            });
+            return;
+        } catch (e) {
+            console.warn('Hardware zoom failed, using CSS scale:', e);
+        }
+    }
+
+    // CSS digital zoom fallback
+    if (zoomCameraVideo) {
+        zoomCameraVideo.style.transform = `scale(${zoomValue})`;
+    }
+}
+
+function capturePhotoFromVideo() {
+    if (!zoomCameraVideo) return;
+
+    const canvas = document.createElement('canvas');
+    const width = zoomCameraVideo.videoWidth || 1280;
+    const height = zoomCameraVideo.videoHeight || 720;
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext('2d');
+    const sliderZoom = document.getElementById('slider-camera-zoom');
+    const zoomVal = sliderZoom ? parseFloat(sliderZoom.value) : 1.0;
+
+    // Check if CSS fallback was used
+    if ((!zoomCapabilities || !zoomCapabilities.zoom) && zoomVal > 1.0) {
+        const sw = width / zoomVal;
+        const sh = height / zoomVal;
+        const sx = (width - sw) / 2;
+        const sy = (height - sh) / 2;
+        ctx.drawImage(zoomCameraVideo, sx, sy, sw, sh, 0, 0, width, height);
+    } else {
+        ctx.drawImage(zoomCameraVideo, 0, 0, width, height);
+    }
+
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    setLectureNotePhotoPreview(dataUrl);
+    closeZoomCameraModal();
+}
+
+function closeZoomCameraModal() {
+    if (zoomStream) {
+        zoomStream.getTracks().forEach(t => t.stop());
+        zoomStream = null;
+        zoomCameraTrack = null;
+    }
+    if (zoomCameraVideo) {
+        zoomCameraVideo.srcObject = null;
+        zoomCameraVideo.style.transform = 'none';
+    }
+    if (zoomCameraModal) {
+        zoomCameraModal.classList.remove('active');
+    }
+}
+
+// ==========================================
+// 10. PHOTO DRAWING & TEXT EDITOR LOGIC
+// ==========================================
+let photoEditorModal = null;
+let photoEditorCanvas = null;
+let photoEditorCtx = null;
+let editorCurrentTool = 'pen'; // 'pen' | 'highlighter' | 'text'
+let editorCurrentColor = '#f43f5e';
+let editorHistory = [];
+let editorBaseImage = null;
+let editorIsDrawing = false;
+let editorLastX = 0;
+let editorLastY = 0;
+
+function setupPhotoEditorControls() {
+    photoEditorModal = document.getElementById('photo-editor-modal');
+    photoEditorCanvas = document.getElementById('photo-editor-canvas');
+    if (!photoEditorCanvas) return;
+    photoEditorCtx = photoEditorCanvas.getContext('2d');
+
+    const btnCancel = document.getElementById('btn-cancel-photo-editor');
+    const btnSave = document.getElementById('btn-save-photo-editor');
+    const btnUndo = document.getElementById('btn-editor-undo');
+    const btnClear = document.getElementById('btn-editor-clear');
+    const toolBtns = document.querySelectorAll('.btn-editor-tool[data-tool]');
+    const colorDots = document.querySelectorAll('.editor-color-dot');
+
+    if (btnCancel) btnCancel.addEventListener('click', closePhotoEditorModal);
+
+    if (btnSave) {
+        btnSave.addEventListener('click', () => {
+            if (!photoEditorCanvas) return;
+            const editedDataUrl = photoEditorCanvas.toDataURL('image/jpeg', 0.88);
+            setLectureNotePhotoPreview(editedDataUrl);
+            closePhotoEditorModal();
+        });
+    }
+
+    if (btnUndo) {
+        btnUndo.addEventListener('click', () => {
+            if (editorHistory.length > 1) {
+                editorHistory.pop(); // Remove current
+                const prevState = editorHistory[editorHistory.length - 1];
+                const img = new Image();
+                img.onload = () => {
+                    photoEditorCtx.clearRect(0, 0, photoEditorCanvas.width, photoEditorCanvas.height);
+                    photoEditorCtx.drawImage(img, 0, 0);
+                };
+                img.src = prevState;
+            }
+        });
+    }
+
+    if (btnClear) {
+        btnClear.addEventListener('click', () => {
+            if (editorBaseImage && confirm('書き込みをすべてリセットしますか？')) {
+                photoEditorCtx.clearRect(0, 0, photoEditorCanvas.width, photoEditorCanvas.height);
+                photoEditorCtx.drawImage(editorBaseImage, 0, 0);
+                saveEditorState();
+            }
+        });
+    }
+
+    toolBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            toolBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            editorCurrentTool = btn.getAttribute('data-tool') || 'pen';
+        });
+    });
+
+    colorDots.forEach(dot => {
+        dot.addEventListener('click', () => {
+            colorDots.forEach(d => d.classList.remove('active'));
+            dot.classList.add('active');
+            editorCurrentColor = dot.getAttribute('data-color') || '#f43f5e';
+        });
+    });
+
+    // Pointer drawing listeners for Canvas
+    photoEditorCanvas.addEventListener('pointerdown', handleEditorPointerDown);
+    photoEditorCanvas.addEventListener('pointermove', handleEditorPointerMove);
+    window.addEventListener('pointerup', handleEditorPointerUp);
+}
+
+function openPhotoEditorModal(imageDataUrl) {
+    if (!photoEditorModal || !photoEditorCanvas) return;
+    photoEditorModal.classList.add('active');
+    editorHistory = [];
+
+    const img = new Image();
+    img.onload = () => {
+        editorBaseImage = img;
+        photoEditorCanvas.width = img.width;
+        photoEditorCanvas.height = img.height;
+        photoEditorCtx.drawImage(img, 0, 0);
+        saveEditorState();
+    };
+    img.src = imageDataUrl;
+}
+
+function closePhotoEditorModal() {
+    if (photoEditorModal) photoEditorModal.classList.remove('active');
+    editorBaseImage = null;
+    editorHistory = [];
+}
+
+function saveEditorState() {
+    if (!photoEditorCanvas) return;
+    editorHistory.push(photoEditorCanvas.toDataURL('image/png'));
+    if (editorHistory.length > 20) editorHistory.shift();
+}
+
+function getCanvasCoordinates(e) {
+    const rect = photoEditorCanvas.getBoundingClientRect();
+    const scaleX = photoEditorCanvas.width / rect.width;
+    const scaleY = photoEditorCanvas.height / rect.height;
+    return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
+    };
+}
+
+function handleEditorPointerDown(e) {
+    if (!photoEditorCanvas) return;
+    const coords = getCanvasCoordinates(e);
+
+    if (editorCurrentTool === 'text') {
+        const text = prompt('写真に書き込む文字を入力:');
+        if (text && text.trim()) {
+            drawTextOnCanvas(text.trim(), coords.x, coords.y);
+            saveEditorState();
+        }
+        return;
+    }
+
+    editorIsDrawing = true;
+    editorLastX = coords.x;
+    editorLastY = coords.y;
+}
+
+function handleEditorPointerMove(e) {
+    if (!editorIsDrawing || !photoEditorCtx) return;
+    const coords = getCanvasCoordinates(e);
+
+    photoEditorCtx.beginPath();
+    photoEditorCtx.moveTo(editorLastX, editorLastY);
+    photoEditorCtx.lineTo(coords.x, coords.y);
+
+    if (editorCurrentTool === 'highlighter') {
+        photoEditorCtx.strokeStyle = editorCurrentColor;
+        photoEditorCtx.lineWidth = Math.max(24, photoEditorCanvas.width / 50);
+        photoEditorCtx.lineCap = 'round';
+        photoEditorCtx.lineJoin = 'round';
+        photoEditorCtx.globalAlpha = 0.35;
+    } else {
+        // 'pen'
+        photoEditorCtx.strokeStyle = editorCurrentColor;
+        photoEditorCtx.lineWidth = Math.max(6, photoEditorCanvas.width / 180);
+        photoEditorCtx.lineCap = 'round';
+        photoEditorCtx.lineJoin = 'round';
+        photoEditorCtx.globalAlpha = 1.0;
+    }
+
+    photoEditorCtx.stroke();
+    photoEditorCtx.globalAlpha = 1.0;
+
+    editorLastX = coords.x;
+    editorLastY = coords.y;
+}
+
+function handleEditorPointerUp() {
+    if (editorIsDrawing) {
+        editorIsDrawing = false;
+        saveEditorState();
+    }
+}
+
+function drawTextOnCanvas(text, x, y) {
+    if (!photoEditorCtx) return;
+
+    const fontSize = Math.max(28, Math.round(photoEditorCanvas.width / 35));
+    photoEditorCtx.font = `bold ${fontSize}px sans-serif`;
+    photoEditorCtx.textBaseline = 'middle';
+
+    const padding = 8;
+    const textWidth = photoEditorCtx.measureText(text).width;
+    const textHeight = fontSize;
+
+    // Draw background tag for readability
+    photoEditorCtx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+    photoEditorCtx.beginPath();
+    photoEditorCtx.roundRect(x - padding, y - (textHeight / 2) - padding, textWidth + (padding * 2), textHeight + (padding * 2), 8);
+    photoEditorCtx.fill();
+
+    // Draw Text with selected color
+    photoEditorCtx.fillStyle = editorCurrentColor;
+    photoEditorCtx.fillText(text, x, y);
+}
+
+// ==========================================
+// TOAST NOTIFICATIONS & SUPABASE CLOUD SYNC
+// ==========================================
+
+function showToast(message, type = 'info') {
+    let toast = document.getElementById('app-toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'app-toast';
+        toast.style.cssText = 'position: fixed; bottom: calc(80px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%) translateY(20px); background: rgba(15, 23, 42, 0.95); color: white; padding: 10px 18px; border-radius: 20px; font-size: 0.82rem; font-weight: 500; z-index: 9999; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 8px 24px rgba(0,0,0,0.5); opacity: 0; pointer-events: none; transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); white-space: nowrap; max-width: 90vw; text-overflow: ellipsis; overflow: hidden;';
+        document.body.appendChild(toast);
+    }
+    
+    if (type === 'error') {
+        toast.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+        toast.style.background = 'rgba(69, 10, 10, 0.95)';
+    } else {
+        toast.style.borderColor = 'rgba(143, 166, 43, 0.5)';
+        toast.style.background = 'rgba(15, 23, 42, 0.95)';
+    }
+
+    toast.textContent = message;
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateX(-50%) translateY(0)';
+    
+    clearTimeout(toast._timeout);
+    toast._timeout = setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(-50%) translateY(20px)';
+    }, 2800);
+}
+
+function loadSupabaseConfig() {
+    try {
+        const saved = localStorage.getItem('qr_pass_supabase') || localStorage.getItem('unipass_supabase');
+        if (saved) return JSON.parse(saved);
+    } catch (e) {
+        console.error('Failed to parse Supabase config:', e);
+    }
+    return { url: '', key: '' };
+}
+
+function isCloudEnabled() {
+    return Boolean(state.supabaseConfig && state.supabaseConfig.url && state.supabaseConfig.key);
+}
+
+function updateCloudSyncUI(status = 'auto') {
+    const badge = document.getElementById('cloud-sync-status-badge');
+    const headerBtn = document.getElementById('btn-header-cloud-sync');
+    const headerDot = document.getElementById('cloud-sync-status-dot');
+    const urlInput = document.getElementById('input-supabase-url');
+    const keyInput = document.getElementById('input-supabase-key');
+
+    if (urlInput && state.supabaseConfig && !urlInput.value) {
+        urlInput.value = state.supabaseConfig.url || '';
+    }
+    if (keyInput && state.supabaseConfig && !keyInput.value) {
+        keyInput.value = state.supabaseConfig.key || '';
+    }
+
+    const enabled = isCloudEnabled();
+
+    if (headerBtn) {
+        headerBtn.style.display = enabled ? 'inline-flex' : 'none';
+        headerBtn.classList.remove('syncing');
+    }
+
+    if (!enabled) {
+        if (badge) {
+            badge.className = 'sync-status-badge disconnected';
+            badge.innerHTML = '<span class="status-indicator"></span> 未接続';
+        }
+        if (headerDot) headerDot.className = 'sync-dot';
+        return;
+    }
+
+    if (status === 'syncing') {
+        if (badge) {
+            badge.className = 'sync-status-badge syncing';
+            badge.innerHTML = '<span class="status-indicator"></span> 同期中...';
+        }
+        if (headerBtn) headerBtn.classList.add('syncing');
+        if (headerDot) headerDot.className = 'sync-dot syncing';
+    } else {
+        if (badge) {
+            badge.className = 'sync-status-badge connected';
+            badge.innerHTML = '<span class="status-indicator"></span> 接続済み・同期中';
+        }
+        if (headerDot) headerDot.className = 'sync-dot connected';
+    }
+}
+
+async function syncFromSupabase(isManual = false) {
+    if (!isCloudEnabled()) return;
+    const { url, key } = state.supabaseConfig;
+
+    updateCloudSyncUI('syncing');
+    try {
+        const res = await fetch(`${url}/rest/v1/classes?select=*`, {
+            method: 'GET',
+            headers: {
+                'apikey': key,
+                'Authorization': `Bearer ${key}`
+            }
+        });
+
+        if (res.ok) {
+            const cloudClasses = await res.json();
+            if (Array.isArray(cloudClasses)) {
+                if (cloudClasses.length > 0) {
+                    state.classes = cloudClasses.map(c => ({
+                        id: String(c.id),
+                        name: c.name || '',
+                        day: Number(c.day) || 1,
+                        period: Number(c.period) || 1,
+                        teacher: c.teacher || c.instructor || '',
+                        room: c.room || c.location || '',
+                        year: c.year ? String(c.year) : '1',
+                        semester: c.semester || '前期',
+                        urlTemplate: c.url_template || c.urlTemplate || '',
+                        type: c.type || 'class',
+                        memo: c.memo || ''
+                    }));
+                    saveData('classes', false);
+                    renderTodayClasses();
+                    renderTimetableForCurrentTab();
+                    if (isManual) {
+                        showToast('クラウドから時間割を取得・同期しました！');
+                    }
+                } else if (state.classes.length > 0) {
+                    // クラウド側が空でローカルにデータがある場合はプッシュ
+                    await syncToSupabase(false);
+                }
+            }
+        } else {
+            const errText = await res.text();
+            console.warn('Supabase syncFrom error response:', res.status, errText);
+            if (isManual) {
+                showToast(`同期エラー: Supabaseからの取得に失敗しました (${res.status})`, 'error');
+            }
+        }
+    } catch (err) {
+        console.warn('Supabase fetch network error:', err);
+        if (isManual) {
+            showToast('通信エラー: Supabaseに接続できませんでした', 'error');
+        }
+    } finally {
+        updateCloudSyncUI('connected');
+    }
+}
+
+async function syncToSupabase(isManual = false) {
+    if (!isCloudEnabled()) return;
+    const { url, key } = state.supabaseConfig;
+
+    updateCloudSyncUI('syncing');
+    try {
+        const payload = state.classes.map(c => ({
+            id: String(c.id),
+            name: c.name || '',
+            day: Number(c.day) || 1,
+            period: Number(c.period) || 1,
+            teacher: c.teacher || '',
+            room: c.room || '',
+            instructor: c.teacher || '',
+            location: c.room || '',
+            year: c.year ? String(c.year) : '1',
+            semester: c.semester || '前期',
+            url_template: c.urlTemplate || '',
+            type: c.type || 'class',
+            memo: c.memo || '',
+            updated_at: new Date().toISOString()
+        }));
+
+        const res = await fetch(`${url}/rest/v1/classes`, {
+            method: 'POST',
+            headers: {
+                'apikey': key,
+                'Authorization': `Bearer ${key}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'resolution=merge-duplicates'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            if (isManual) {
+                showToast('時間割をクラウドに保存しました！');
+            }
+        } else {
+            const errText = await res.text();
+            console.warn('Supabase push error:', res.status, errText);
+            if (isManual) {
+                showToast(`保存エラー: Supabaseへの送信に失敗 (${res.status})`, 'error');
+            }
+        }
+    } catch (err) {
+        console.warn('Supabase push network error:', err);
+        if (isManual) {
+            showToast('通信エラー: クラウドへ保存できませんでした', 'error');
+        }
+    } finally {
+        updateCloudSyncUI('connected');
+    }
+}
+
+function setupCloudSync() {
+    state.supabaseConfig = loadSupabaseConfig();
+    updateCloudSyncUI();
+
+    // 起動時にクラウド同期を実行
+    if (isCloudEnabled()) {
+        syncFromSupabase(false);
+    }
+
+    // 保存ボタン
+    const btnSave = document.getElementById('btn-save-supabase');
+    if (btnSave) {
+        btnSave.addEventListener('click', async () => {
+            const urlInput = document.getElementById('input-supabase-url');
+            const keyInput = document.getElementById('input-supabase-key');
+            let url = urlInput ? urlInput.value.trim() : '';
+            const key = keyInput ? keyInput.value.trim() : '';
+
+            if (url.endsWith('/')) url = url.slice(0, -1);
+
+            if (!url || !key) {
+                alert('Project URL と Anon Key を両方入力してください。');
+                return;
+            }
+
+            state.supabaseConfig = { url, key };
+            localStorage.setItem('qr_pass_supabase', JSON.stringify(state.supabaseConfig));
+            localStorage.setItem('unipass_supabase', JSON.stringify(state.supabaseConfig));
+
+            updateCloudSyncUI('syncing');
+
+            await syncToSupabase(false);
+            await syncFromSupabase(true);
+            updateCloudSyncUI('connected');
+        });
+    }
+
+    // 接続テスト
+    const btnTest = document.getElementById('btn-cloud-test-connection');
+    if (btnTest) {
+        btnTest.addEventListener('click', async () => {
+            const urlInput = document.getElementById('input-supabase-url');
+            const keyInput = document.getElementById('input-supabase-key');
+            let url = urlInput ? urlInput.value.trim() : '';
+            const key = keyInput ? keyInput.value.trim() : '';
+            if (url.endsWith('/')) url = url.slice(0, -1);
+
+            if (!url || !key) {
+                alert('テストを行うには URL と Key を入力してください。');
+                return;
+            }
+
+            btnTest.disabled = true;
+            btnTest.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+            try {
+                const res = await fetch(`${url}/rest/v1/classes?limit=1`, {
+                    headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
+                });
+                if (res.ok) {
+                    alert('✅ Supabaseへの接続に成功しました！テーブルも正常に認識されています。');
+                } else {
+                    const text = await res.text();
+                    alert(`⚠️ 接続に失敗しました (${res.status}):\n${text}\n\n「テーブル作成SQLを表示」からSQLを実行しているか確認してください。`);
+                }
+            } catch (err) {
+                alert(`❌ 通信エラー: URLが正しいか確認してください。\n${err.message}`);
+            } finally {
+                btnTest.disabled = false;
+                btnTest.innerHTML = '<i class="fa-solid fa-bolt"></i> テスト';
+            }
+        });
+    }
+
+    // クラウドから取得（Pull）
+    const btnPull = document.getElementById('btn-cloud-pull');
+    if (btnPull) {
+        btnPull.addEventListener('click', () => syncFromSupabase(true));
+    }
+
+    // クラウドへ保存（Push）
+    const btnPush = document.getElementById('btn-cloud-push');
+    if (btnPush) {
+        btnPush.addEventListener('click', () => syncToSupabase(true));
+    }
+
+    // 連携解除
+    const btnClear = document.getElementById('btn-clear-supabase');
+    if (btnClear) {
+        btnClear.addEventListener('click', () => {
+            if (confirm('Supabaseとの連携を解除しますか？\n（※端末内の時間割データは削除されません）')) {
+                state.supabaseConfig = { url: '', key: '' };
+                localStorage.removeItem('qr_pass_supabase');
+                localStorage.removeItem('unipass_supabase');
+                const urlInput = document.getElementById('input-supabase-url');
+                const keyInput = document.getElementById('input-supabase-key');
+                if (urlInput) urlInput.value = '';
+                if (keyInput) keyInput.value = '';
+                updateCloudSyncUI('disconnected');
+                showToast('Supabaseとの連携を解除しました');
+            }
+        });
+    }
+
+    // ヘッダークイック同期ボタン
+    const headerBtn = document.getElementById('btn-header-cloud-sync');
+    if (headerBtn) {
+        headerBtn.addEventListener('click', async () => {
+            await syncFromSupabase(true);
+        });
+    }
+
+    // SQLモーダル表示
+    const btnShowSql = document.getElementById('btn-show-sql-helper');
+    const sqlModal = document.getElementById('modal-sql-helper');
+    const btnCloseSql = document.getElementById('btn-close-sql-modal');
+    const btnCopySql = document.getElementById('btn-copy-sql');
+
+    if (btnShowSql && sqlModal) {
+        btnShowSql.addEventListener('click', () => {
+            sqlModal.classList.add('active');
+        });
+    }
+
+    if (btnCloseSql && sqlModal) {
+        btnCloseSql.addEventListener('click', () => {
+            sqlModal.classList.remove('active');
+        });
+    }
+
+    if (sqlModal) {
+        sqlModal.addEventListener('click', (e) => {
+            if (e.target === sqlModal) sqlModal.classList.remove('active');
+        });
+    }
+
+    if (btnCopySql) {
+        btnCopySql.addEventListener('click', () => {
+            const sqlText = document.getElementById('supabase-sql-code')?.innerText;
+            if (sqlText) {
+                navigator.clipboard.writeText(sqlText).then(() => {
+                    const originalHTML = btnCopySql.innerHTML;
+                    btnCopySql.innerHTML = '<i class="fa-solid fa-check"></i> コピー完了！';
+                    setTimeout(() => { btnCopySql.innerHTML = originalHTML; }, 2000);
+                }).catch(() => {
+                    alert('クリップボードへのコピーに失敗しました。直接コードを選択してコピーしてください。');
+                });
+            }
+        });
+    }
+}
+
+
 
 

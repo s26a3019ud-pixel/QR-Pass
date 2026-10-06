@@ -39,6 +39,10 @@
                 <span class="logo-text">QR-<span class="highlight">Pass</span></span>
             </div>
             <div class="header-actions">
+                <button id="btn-header-cloud-sync" class="header-cloud-btn" title="クラウド同期" style="display: none;">
+                    <i class="fa-solid fa-cloud"></i>
+                    <span id="cloud-sync-status-dot" class="sync-dot"></span>
+                </button>
                 <span id="current-time-display" class="time-display">00:00</span>
             </div>
         </header>
@@ -94,18 +98,25 @@
             </section>
 
 
-            <!-- 3. HISTORY SCREEN -->
-            <section id="screen-history" class="app-screen">
-                <div class="section-header-row">
-                    <h3>出席履歴</h3>
-                    <button id="btn-clear-history" class="btn-text-danger">すべて消去</button>
+            <!-- 3. NOTE SCREEN (授業別ノート) -->
+            <section id="screen-note" class="app-screen">
+                <div class="section-header-row" style="margin-bottom: 12px;">
+                    <h3>授業note</h3>
+                    <button id="btn-add-lecture-note" class="btn btn-primary btn-sm" style="width: auto; padding: 6px 14px; font-size: 0.8rem; font-weight: 600;">
+                        <i class="fa-solid fa-plus"></i> ノートを書く
+                    </button>
                 </div>
-                <div id="history-list-container" class="history-list">
+
+                <!-- 授業選択ドロップダウン / フィルター -->
+                <div class="note-class-filter-bar" style="margin-bottom: 16px;">
+                    <select id="select-note-class-filter" style="width: 100%; padding: 10px 14px; font-size: 0.85rem; background: rgba(255,255,255,0.04); border: 1px solid var(--card-border); border-radius: 12px; color: var(--text-primary);">
+                        <option value="all">すべての授業のノート</option>
+                        <!-- Dynamic class options -->
+                    </select>
+                </div>
+
+                <div id="note-list-container" class="lecture-note-list-container">
                     <!-- Dynamic rendering -->
-                    <div class="empty-state">
-                        <i class="fa-solid fa-history"></i>
-                        <p>出席履歴がありません</p>
-                    </div>
                 </div>
             </section>
 
@@ -188,10 +199,62 @@
                     </div>
                 </div>
 
+                <!-- Cloud Sync (Supabase) -->
+                <div class="settings-section cloud-sync-section">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h4 style="margin-bottom: 0; border-bottom: none; padding-bottom: 0;">
+                            <i class="fa-solid fa-cloud highlight" style="margin-right: 6px;"></i> クラウド同期 (Supabase)
+                        </h4>
+                        <span id="cloud-sync-status-badge" class="sync-status-badge disconnected">
+                            <span class="status-indicator"></span> 未接続
+                        </span>
+                    </div>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.5;">
+                        Supabaseと連携することで、PCやスマホ、友達間で時間割データを自動同期・共有できます。
+                    </p>
+                    
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Project URL</label>
+                        <input type="text" id="input-supabase-url" placeholder="https://xxxxxxxxxxxxxx.supabase.co" style="width: 100%; padding: 10px 12px; border-radius: 10px; background: rgba(0,0,0,0.25); border: 1px solid var(--card-border); color: white; font-size: 0.85rem; font-family: monospace;">
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Anon Key (Public API Key)</label>
+                        <input type="password" id="input-supabase-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6..." style="width: 100%; padding: 10px 12px; border-radius: 10px; background: rgba(0,0,0,0.25); border: 1px solid var(--card-border); color: white; font-size: 0.85rem; font-family: monospace;">
+                    </div>
+
+                    <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                        <button id="btn-save-supabase" class="btn btn-primary" style="flex: 1;">
+                            <i class="fa-solid fa-check"></i> 設定を保存
+                        </button>
+                        <button id="btn-cloud-test-connection" class="btn btn-secondary" style="width: auto; padding: 0 14px;" title="接続テスト">
+                            <i class="fa-solid fa-bolt"></i> テスト
+                        </button>
+                    </div>
+
+                    <div id="cloud-action-buttons" style="display: flex; gap: 8px; margin-bottom: 12px;">
+                        <button id="btn-cloud-pull" class="btn btn-secondary" style="flex: 1; font-size: 0.8rem; padding: 8px 10px;">
+                            <i class="fa-solid fa-cloud-arrow-down"></i> クラウドから取得
+                        </button>
+                        <button id="btn-cloud-push" class="btn btn-secondary" style="flex: 1; font-size: 0.8rem; padding: 8px 10px;">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> クラウドへ保存
+                        </button>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+                        <button id="btn-show-sql-helper" class="btn-text-link" style="font-size: 0.75rem; color: var(--accent-primary); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0;">
+                            <i class="fa-solid fa-code"></i> テーブル作成SQLを表示
+                        </button>
+                        <button id="btn-clear-supabase" class="btn-text-link" style="font-size: 0.75rem; color: var(--danger); background: none; border: none; cursor: pointer; padding: 0;">
+                            <i class="fa-solid fa-link-slash"></i> 連携解除
+                        </button>
+                    </div>
+                </div>
+
                 <div class="settings-section app-info">
                     <h4>アプリについて</h4>
-                    <p>QR-Pass v1.4.5</p>
-                    <p class="text-muted">大学の授業出席QRを一元管理するための完全オフライン動作アプリです。データはブラウザのLocalStorageにのみ保存されます。</p>
+                    <p>QR-Pass v2.1.0</p>
+                    <p class="text-muted">大学の授業出席QRを一元管理するためのWebアプリです。オフライン対応に加え、Supabase連携による複数端末リアルタイム同期に対応しています。</p>
                 </div>
 
                 <div class="settings-section">
@@ -244,9 +307,9 @@
                 <i class="fa-solid fa-note-sticky"></i>
                 <span>メモ帳</span>
             </button>
-            <button class="nav-item" data-screen="history">
-                <i class="fa-solid fa-clock-rotate-left"></i>
-                <span>履歴</span>
+            <button class="nav-item" data-screen="note">
+                <i class="fa-solid fa-book-open"></i>
+                <span>note</span>
             </button>
             <button class="nav-item" data-screen="settings">
                 <i class="fa-solid fa-sliders"></i>
@@ -520,6 +583,198 @@
             </div>
         </div>
 
+        <!-- 1. Lecture Note Modal (Create / Edit) -->
+        <div id="lecture-note-modal" class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="lecture-note-modal-title">講義ノートの作成</h3>
+                    <button id="btn-close-lecture-note-modal" class="btn-close">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <form id="lecture-note-form" class="modal-body">
+                    <input type="hidden" id="form-note-id">
+                    <input type="hidden" id="form-note-image-data">
+
+                    <div class="form-group">
+                        <label for="form-note-class">対象の授業 <span class="required">*</span></label>
+                        <select id="form-note-class" required>
+                            <!-- Dynamic class options -->
+                        </select>
+                    </div>
+
+                    <div class="form-row" style="display: flex; gap: 12px; width: 100%;">
+                        <div class="form-group" style="flex: 2;">
+                            <label for="form-note-title">タイトル / 回数 <span class="required">*</span></label>
+                            <input type="text" id="form-note-title" placeholder="例: 第3回 講義ノート, 中間試験範囲" required>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label for="form-note-date">日付</label>
+                            <input type="date" id="form-note-date">
+                        </div>
+                    </div>
+
+                    <!-- 板書・スライド写真エリア -->
+                    <div class="form-group">
+                        <label>板書・スライド写真 (任意)</label>
+                        
+                        <!-- 撮影 & 選択ボタン群 -->
+                        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                            <button type="button" id="btn-open-zoom-camera" class="btn btn-primary btn-sm" style="flex: 1; padding: 10px 8px; font-size: 0.82rem; font-weight: 600;">
+                                <i class="fa-solid fa-camera"></i> ズームカメラで撮影
+                            </button>
+                            <button type="button" id="btn-trigger-note-file" class="btn btn-secondary btn-sm" style="flex: 1; padding: 10px 8px; font-size: 0.82rem;">
+                                <i class="fa-solid fa-image"></i> 写真・スクショ選択
+                            </button>
+                            <input type="file" id="input-note-photo" class="hidden" accept="image/*">
+                        </div>
+
+                        <!-- プレビュー＆編集トリガー -->
+                        <div id="note-photo-preview-container" class="hidden" style="position: relative; width: 100%; border-radius: 12px; overflow: hidden; border: 1px solid var(--card-border); background: rgba(0,0,0,0.3); text-align: center;">
+                            <img id="note-photo-preview" src="" style="max-height: 220px; width: auto; max-width: 100%; object-fit: contain; display: block; margin: 0 auto;">
+                            
+                            <!-- 写真編集・削除アクションバー -->
+                            <div style="display: flex; gap: 8px; justify-content: center; padding: 8px; background: rgba(0,0,0,0.6);">
+                                <button type="button" id="btn-open-photo-editor" class="btn btn-primary btn-sm" style="padding: 6px 14px; font-size: 0.78rem;">
+                                    <i class="fa-solid fa-pen-nib"></i> この写真に手書き・文字入れ
+                                </button>
+                                <button type="button" id="btn-remove-note-photo" class="btn btn-danger btn-sm" style="padding: 6px 10px; font-size: 0.78rem;">
+                                    <i class="fa-solid fa-trash-can"></i> 削除
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="form-note-text">講義ノート・要点まとめ</label>
+                        <textarea id="form-note-text" rows="5" placeholder="授業の要点、課題のメモ、重要な公式やポイントを入力..."></textarea>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" id="btn-delete-lecture-note" class="btn btn-danger hidden">削除</button>
+                        <div class="footer-actions">
+                            <button type="button" id="btn-cancel-lecture-note-modal" class="btn btn-secondary">キャンセル</button>
+                            <button type="submit" id="btn-save-lecture-note" class="btn btn-primary">保存</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 2. Zoom & Wide Camera Modal -->
+        <div id="zoom-camera-modal" class="modal-overlay" style="z-index: 110; background: #000; padding: 0;">
+            <div style="position: relative; width: 100vw; height: 100vh; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;">
+                
+                <!-- カメラ上部ヘッダー -->
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: calc(16px + env(safe-area-inset-top)) 20px 10px; z-index: 10; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);">
+                    <span style="color: white; font-weight: 600; font-size: 0.95rem;">📸 板書・スライド撮影</span>
+                    <button type="button" id="btn-close-zoom-camera" class="btn-close" style="color: white; font-size: 1.3rem;">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- 映像プレビューコンテナ -->
+                <div style="flex: 1; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #000;">
+                    <video id="zoom-camera-video" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: contain;"></video>
+                    <canvas id="zoom-camera-canvas" class="hidden"></canvas>
+                </div>
+
+                <!-- カメラ下部コントロールバー -->
+                <div style="padding: 12px 20px calc(24px + env(safe-area-inset-bottom)); background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); z-index: 10; display: flex; flex-direction: column; align-items: center; gap: 14px;">
+                    
+                    <!-- ズーム倍率ボタン & スライダー -->
+                    <div style="display: flex; align-items: center; gap: 10px; width: 100%; max-width: 320px; justify-content: center;">
+                        <div class="camera-zoom-presets" style="display: flex; gap: 8px;">
+                            <button type="button" class="btn-zoom-preset active" data-zoom="1.0">1x</button>
+                            <button type="button" class="btn-zoom-preset" data-zoom="2.0">2x</button>
+                            <button type="button" class="btn-zoom-preset" data-zoom="3.0">3x</button>
+                        </div>
+                        <input type="range" id="slider-camera-zoom" min="1" max="5" step="0.1" value="1" style="flex: 1; accent-color: var(--accent-primary);">
+                        <span id="txt-camera-zoom-val" style="color: white; font-size: 0.8rem; font-weight: 600; min-width: 32px;">1.0x</span>
+                    </div>
+
+                    <!-- シャッターボタン & ネイティブカメラ切替 -->
+                    <div style="display: flex; align-items: center; justify-content: space-around; width: 100%; max-width: 360px;">
+                        <label for="input-native-camera" style="color: var(--text-secondary); font-size: 0.75rem; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer;">
+                            <i class="fa-solid fa-arrows-rotate" style="font-size: 1.2rem;"></i>
+                            <span>純正カメラ</span>
+                        </label>
+                        <input type="file" id="input-native-camera" class="hidden" accept="image/*" capture="environment">
+
+                        <button type="button" id="btn-capture-zoom-photo" style="width: 72px; height: 72px; border-radius: 50%; background: white; border: 4px solid rgba(255,255,255,0.4); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.1s;">
+                            <div style="width: 58px; height: 58px; border-radius: 50%; border: 2px solid #000; background: white;"></div>
+                        </button>
+
+                        <div style="width: 48px;"></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- 3. Photo Drawing & Text Editor Modal -->
+        <div id="photo-editor-modal" class="modal-overlay" style="z-index: 120; background: #000; padding: 0;">
+            <div style="position: relative; width: 100vw; height: 100vh; display: flex; flex-direction: column; overflow: hidden;">
+                
+                <!-- エディタ上部ヘッダー -->
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: calc(14px + env(safe-area-inset-top)) 16px 10px; background: rgba(20,20,25,0.95); border-bottom: 1px solid rgba(255,255,255,0.1); z-index: 10;">
+                    <button type="button" id="btn-cancel-photo-editor" class="btn btn-secondary btn-sm" style="padding: 6px 12px; font-size: 0.8rem;">
+                        キャンセル
+                    </button>
+                    <span style="color: white; font-weight: 600; font-size: 0.9rem;">写真編集・書き込み</span>
+                    <button type="button" id="btn-save-photo-editor" class="btn btn-primary btn-sm" style="padding: 6px 14px; font-size: 0.8rem; font-weight: 600;">
+                        <i class="fa-solid fa-check"></i> 完了
+                    </button>
+                </div>
+
+                <!-- キャンバス描画メインエリア -->
+                <div id="photo-editor-canvas-container" style="flex: 1; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #111; touch-action: none;">
+                    <canvas id="photo-editor-canvas" style="max-width: 100%; max-height: 100%; object-fit: contain; display: block; box-shadow: 0 4px 20px rgba(0,0,0,0.5);"></canvas>
+                </div>
+
+                <!-- エディタ下部ツールバー -->
+                <div style="padding: 10px 16px calc(16px + env(safe-area-inset-bottom)); background: rgba(20,20,25,0.95); border-top: 1px solid rgba(255,255,255,0.1); z-index: 10; display: flex; flex-direction: column; gap: 10px;">
+                    
+                    <!-- カラー＆ツール選択行 -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                        
+                        <!-- ツール切替 -->
+                        <div style="display: flex; gap: 6px;">
+                            <button type="button" class="btn-editor-tool active" data-tool="pen" title="手書きペン">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button type="button" class="btn-editor-tool" data-tool="highlighter" title="蛍光マーカー">
+                                <i class="fa-solid fa-highlighter"></i>
+                            </button>
+                            <button type="button" class="btn-editor-tool" data-tool="text" title="文字入れ">
+                                <i class="fa-solid fa-font"></i>
+                            </button>
+                        </div>
+
+                        <!-- カラーパレット -->
+                        <div class="editor-color-palette" style="display: flex; gap: 8px; align-items: center;">
+                            <span class="editor-color-dot active" data-color="#f43f5e" style="background: #f43f5e;"></span>
+                            <span class="editor-color-dot" data-color="#eab308" style="background: #eab308;"></span>
+                            <span class="editor-color-dot" data-color="#38bdf8" style="background: #38bdf8;"></span>
+                            <span class="editor-color-dot" data-color="#ffffff" style="background: #ffffff;"></span>
+                            <span class="editor-color-dot" data-color="#10b981" style="background: #10b981;"></span>
+                        </div>
+
+                        <!-- 操作 -->
+                        <div style="display: flex; gap: 6px;">
+                            <button type="button" id="btn-editor-undo" class="btn-editor-tool" title="元に戻す">
+                                <i class="fa-solid fa-rotate-left"></i>
+                            </button>
+                            <button type="button" id="btn-editor-clear" class="btn-editor-tool" title="全消去">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
         <!-- Semester Filter Picker Bottom Sheet -->
         <div id="semester-picker-sheet" class="modal-overlay" style="align-items: flex-end;">
             <div class="modal-content" style="border-radius: 24px 24px 0 0; padding-bottom: calc(20px + env(safe-area-inset-bottom)); max-height: 80vh; display: flex; flex-direction: column;">
@@ -533,6 +788,60 @@
                     <div id="semester-picker-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
                         <!-- Dynamic list of filters -->
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Supabase SQL Helper Modal -->
+        <div id="modal-sql-helper" class="modal-overlay">
+            <div class="modal-content" style="max-width: 500px; width: 90%;">
+                <div class="modal-header">
+                    <h3 style="font-size: 1rem; font-weight: 600;"><i class="fa-solid fa-database highlight"></i> Supabase テーブル作成SQL</h3>
+                    <button id="btn-close-sql-modal" class="btn-close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body" style="padding: 16px 20px;">
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.5;">
+                        Supabaseの管理画面左メニュー <strong>「SQL Editor」</strong> ＞ <strong>「New query」</strong> に以下のコードを貼り付けて <strong>「Run」</strong> を押してください。大学note（UniPass）の既存テーブルとも互換対応しています。
+                    </p>
+                    <div style="position: relative; margin-bottom: 14px;">
+                        <pre id="supabase-sql-code" style="background: rgba(0,0,0,0.45); padding: 12px; border-radius: 10px; font-size: 0.75rem; color: #a5b4fc; overflow-x: auto; max-height: 200px; border: 1px solid rgba(255,255,255,0.08); font-family: Consolas, monospace; line-height: 1.4; user-select: text;">-- 1. 時間割・講義テーブル
+create table if not exists classes (
+  id text primary key,
+  name text not null,
+  day integer,
+  period integer,
+  teacher text,
+  room text,
+  instructor text,
+  location text,
+  year text,
+  semester text,
+  url_template text,
+  type text default 'class',
+  memo text,
+  color text,
+  materials jsonb default '[]'::jsonb,
+  notes jsonb default '[]'::jsonb,
+  updated_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+-- 既存テーブルがある場合の拡張（安全策）
+alter table classes add column if not exists teacher text;
+alter table classes add column if not exists room text;
+alter table classes add column if not exists instructor text;
+alter table classes add column if not exists location text;
+alter table classes add column if not exists year text;
+alter table classes add column if not exists semester text;
+alter table classes add column if not exists url_template text;
+alter table classes add column if not exists type text default 'class';
+alter table classes add column if not exists memo text;
+
+-- 2. リアルタイム同期の有効化
+alter publication supabase_realtime add table classes;</pre>
+                    </div>
+                    <button type="button" id="btn-copy-sql" class="btn btn-primary" style="width: 100%;">
+                        <i class="fa-regular fa-copy"></i> SQLをコピーする
+                    </button>
                 </div>
             </div>
         </div>
