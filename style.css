@@ -678,12 +678,14 @@ body {
     padding: 20px;
     opacity: 0;
     pointer-events: none;
-    transition: var(--transition-smooth);
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
 }
 
 .scanner-overlay.active {
     opacity: 1;
     pointer-events: auto;
+    visibility: visible;
 }
 
 .scanner-container {
@@ -866,12 +868,14 @@ body {
     align-items: flex-end;
     opacity: 0;
     pointer-events: none;
-    transition: var(--transition-smooth);
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
 }
 
 .modal-overlay.active {
     opacity: 1;
     pointer-events: auto;
+    visibility: visible;
 }
 
 .modal-content {

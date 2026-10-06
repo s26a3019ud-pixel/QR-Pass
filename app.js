@@ -1157,6 +1157,7 @@ function recordAttendance(classId, className, url) {
 
 function renderHistory() {
     const container = document.getElementById('history-list-container');
+    if (!container) return;
     
     if (state.history.length === 0) {
         container.innerHTML = `
