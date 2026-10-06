@@ -1948,6 +1948,10 @@ body {
 }
 
 /* SQL Helper Modal Specific Styles */
+#modal-sql-helper {
+    display: none !important;
+}
+
 #modal-sql-helper.active {
     display: flex !important;
     opacity: 1 !important;

@@ -103,52 +103,32 @@ function initApp() {
     let today = new Date().getDay();
     state.selectedTimelineDay = today === 0 ? 1 : today;
 
-    // Start real-time clock and active class tracking
-    startClock();
-    updateDashboard();
+    const safeInit = (name, fn) => {
+        try {
+            fn();
+        } catch (e) {
+            console.error(`Init error in ${name}:`, e);
+        }
+    };
 
-    // Navigation setup
-    setupNavigation();
-
-    // Timetable screen setup
-    setupTimetableScreen();
-
-    // Settings screen setup
-    setupSettingsScreen();
-
-    // Modals & Form setup
-    setupClassModal();
-
-    // Memo / Freeboard screen setup
-    setupMemoScreen();
-
-    // Lecture Note screen setup
-    setupLectureNoteScreen();
-
-    // QR Scanner setup
-    setupQRScanner();
-
-    // manaba Import setup
-    setupManabaImport();
-
-    // Notifications & Reminders setup
-    setupNotifications();
-    scheduleDailyNotifications();
-
-    // Setup semester/year filter
-    setupSemesterFilter();
-
-    // Setup home timeline day tabs
-    setupTimelineTabs();
-
-    // Render timeline classes (no animation on initial load)
-    renderTodayClasses(false);
-
-    // Handle manaba URL Parameter Import
-    handleURLImport();
-
-    // Setup Supabase Cloud Sync
-    setupCloudSync();
+    // Core Services & UI
+    safeInit('startClock', startClock);
+    safeInit('updateDashboard', updateDashboard);
+    safeInit('setupNavigation', setupNavigation);
+    safeInit('setupTimetableScreen', setupTimetableScreen);
+    safeInit('setupSettingsScreen', setupSettingsScreen);
+    safeInit('setupClassModal', setupClassModal);
+    safeInit('setupMemoScreen', setupMemoScreen);
+    safeInit('setupLectureNoteScreen', setupLectureNoteScreen);
+    safeInit('setupQRScanner', setupQRScanner);
+    safeInit('setupManabaImport', setupManabaImport);
+    safeInit('setupNotifications', setupNotifications);
+    safeInit('scheduleDailyNotifications', scheduleDailyNotifications);
+    safeInit('setupSemesterFilter', setupSemesterFilter);
+    safeInit('setupTimelineTabs', setupTimelineTabs);
+    safeInit('renderTodayClasses', () => renderTodayClasses(false));
+    safeInit('handleURLImport', handleURLImport);
+    safeInit('setupCloudSync', setupCloudSync);
 }
 
 // ==========================================
@@ -1218,8 +1198,11 @@ function renderHistory() {
 // 9. SETTINGS MANAGEMENT
 // ==========================================
 function setupSettingsScreen() {
-    document.getElementById('btn-save-periods').addEventListener('click', savePeriodsConfig);
-    document.getElementById('btn-clear-history').addEventListener('click', clearHistoryData);
+    const btnSavePeriods = document.getElementById('btn-save-periods');
+    if (btnSavePeriods) btnSavePeriods.addEventListener('click', savePeriodsConfig);
+
+    const btnClearHistory = document.getElementById('btn-clear-history');
+    if (btnClearHistory) btnClearHistory.addEventListener('click', clearHistoryData);
     
     // Accordion periods toggle
     const btnTogglePeriods = document.getElementById('btn-toggle-periods-settings');
@@ -1268,15 +1251,19 @@ function setupSettingsScreen() {
     }
 
     // Backup triggers
-    document.getElementById('btn-export-data').addEventListener('click', exportDataToJSON);
+    const btnExportData = document.getElementById('btn-export-data');
+    if (btnExportData) btnExportData.addEventListener('click', exportDataToJSON);
     
     const importTrigger = document.getElementById('btn-import-data-trigger');
     const importInput = document.getElementById('input-import-data');
     
-    importTrigger.addEventListener('click', () => importInput.click());
-    importInput.addEventListener('change', importDataFromJSON);
+    if (importTrigger && importInput) {
+        importTrigger.addEventListener('click', () => importInput.click());
+        importInput.addEventListener('change', importDataFromJSON);
+    }
 
-    document.getElementById('btn-reset-all').addEventListener('click', resetAllApplicationData);
+    const btnResetAll = document.getElementById('btn-reset-all');
+    if (btnResetAll) btnResetAll.addEventListener('click', resetAllApplicationData);
 
     // Update Logs Notice Center Accordion Toggle
     const toggleBtn = document.getElementById('btn-toggle-notifications');
