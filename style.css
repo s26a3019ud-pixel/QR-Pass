@@ -1947,4 +1947,21 @@ body {
     border-left: 3px solid var(--accent-primary);
 }
 
+/* SQL Helper Modal Specific Styles */
+#modal-sql-helper.active {
+    display: flex !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
+#modal-sql-helper .modal-content {
+    transform: scale(0.95);
+    transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+#modal-sql-helper.active .modal-content {
+    transform: scale(1) translateY(0) !important;
+}
+
+
 

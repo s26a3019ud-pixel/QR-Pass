@@ -3529,45 +3529,81 @@ function setupCloudSync() {
         });
     }
 
-    // SQLモーダル表示
-    const btnShowSql = document.getElementById('btn-show-sql-helper');
+    // SQLモーダル外側クリックで閉じる
     const sqlModal = document.getElementById('modal-sql-helper');
-    const btnCloseSql = document.getElementById('btn-close-sql-modal');
-    const btnCopySql = document.getElementById('btn-copy-sql');
-
-    if (btnShowSql && sqlModal) {
-        btnShowSql.addEventListener('click', () => {
-            sqlModal.classList.add('active');
-        });
-    }
-
-    if (btnCloseSql && sqlModal) {
-        btnCloseSql.addEventListener('click', () => {
-            sqlModal.classList.remove('active');
-        });
-    }
-
     if (sqlModal) {
         sqlModal.addEventListener('click', (e) => {
-            if (e.target === sqlModal) sqlModal.classList.remove('active');
-        });
-    }
-
-    if (btnCopySql) {
-        btnCopySql.addEventListener('click', () => {
-            const sqlText = document.getElementById('supabase-sql-code')?.innerText;
-            if (sqlText) {
-                navigator.clipboard.writeText(sqlText).then(() => {
-                    const originalHTML = btnCopySql.innerHTML;
-                    btnCopySql.innerHTML = '<i class="fa-solid fa-check"></i> コピー完了！';
-                    setTimeout(() => { btnCopySql.innerHTML = originalHTML; }, 2000);
-                }).catch(() => {
-                    alert('クリップボードへのコピーに失敗しました。直接コードを選択してコピーしてください。');
-                });
-            }
+            if (e.target === sqlModal) closeSqlModal();
         });
     }
 }
+
+// ==========================================
+// SQL HELPER MODAL & INLINE HANDLERS
+// ==========================================
+
+window.openSqlModal = function() {
+    const modal = document.getElementById('modal-sql-helper');
+    if (modal) {
+        modal.classList.add('active');
+    }
+};
+
+window.closeSqlModal = function() {
+    const modal = document.getElementById('modal-sql-helper');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+};
+
+window.toggleSqlInline = function() {
+    const container = document.getElementById('sql-inline-container');
+    if (container) {
+        if (container.style.display === 'none' || !container.style.display) {
+            container.style.display = 'block';
+            container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } else {
+            container.style.display = 'none';
+        }
+    } else {
+        openSqlModal();
+    }
+};
+
+window.copySqlCode = function() {
+    const codeEl = document.getElementById('supabase-sql-code');
+    const btn = document.getElementById('btn-copy-sql');
+    if (!codeEl) return;
+    const text = codeEl.innerText || codeEl.textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        if (btn) {
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> コピー完了！';
+            setTimeout(() => { btn.innerHTML = originalHTML; }, 2000);
+        }
+        showToast('SQLをクリップボードにコピーしました！');
+    }).catch(() => {
+        alert('クリップボードへのコピーに失敗しました。表示されているコードを選択してコピーしてください。');
+    });
+};
+
+window.copySqlCodeInline = function() {
+    const codeEl = document.getElementById('supabase-sql-code-inline') || document.getElementById('supabase-sql-code');
+    const btn = document.getElementById('btn-copy-sql-inline');
+    if (!codeEl) return;
+    const text = codeEl.innerText || codeEl.textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        if (btn) {
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> コピー完了！';
+            setTimeout(() => { btn.innerHTML = originalHTML; }, 2000);
+        }
+        showToast('SQLをクリップボードにコピーしました！');
+    }).catch(() => {
+        alert('クリップボードへのコピーに失敗しました。表示されているコードを選択してコピーしてください。');
+    });
+};
+
 
 
 
